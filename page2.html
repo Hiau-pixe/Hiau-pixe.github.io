@@ -30,48 +30,47 @@ input{padding:8px;border:1px solid #ddd;border-radius:6px;width:180px;}
 </div>
 
 <div class="box">
-  <div class="area-title">📦 订单管理（精确到时分筛选）</div>
-  
+  <div class="area-title">📦 订单管理（日期筛选 + 批量导出）</div>
   <div class="filter-row">
     <input type="date" id="startDate" placeholder="开始日期">
     <input type="date" id="endDate" placeholder="结束日期">
     <button class="btn btn-blue" onclick="loadOrders()">🔍 筛选查询</button>
     <button class="btn btn-red" onclick="exportFilteredOrders()">📥 导出筛选结果</button>
   </div>
-
   <div id="orderList"></div>
 </div>
 
 <script>
-// 上传商品（已修复乱码）
-function uploadGoods() {
+const CLOUD_API = "https://sheetdb.io/api/v1/mi1l5x8kbswc5";
+
+async function uploadGoods() {
   const file = document.getElementById("fileInput").files[0];
   if (!file) return alert("请选择文件");
-
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
-      const decoder = new TextDecoder("gbk");
-      text = decoder.decode(new Uint8Array(e.target.result));
+      let text = new TextDecoder("gbk").decode(new Uint8Array(e.target.result));
     } catch (e) {
-      text = new TextDecoder("utf-8").decode(new Uint8Array(e.target.result));
+      let text = new TextDecoder("utf-8").decode(new Uint8Array(e.target.result));
     }
-
     const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
     const goods = [];
     lines.forEach(line => {
       const [code, name] = line.split(",");
-      if (code && name) {
-        goods.push({ code: code.trim(), name: name.trim() });
-      }
+      if (code && name) goods.push({ code: code.trim(), name: name.trim() });
     });
-    localStorage.setItem("goodsData", JSON.stringify(goods));
+
+    await fetch(`${CLOUD_API}?sheet=goods`, { method: "DELETE" });
+    await fetch(CLOUD_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ data: goods, sheet: "goods" })
+    });
     alert("上传成功！用户端已同步商品");
   };
   reader.readAsArrayBuffer(file);
 }
 
-// 下载商品模板
 function exportSample() {
   const csv = "编码,商品名称\n6941899614135,红岁驰春 迷你吧唧1对";
   const a = document.createElement("a");
@@ -80,24 +79,16 @@ function exportSample() {
   a.click();
 }
 
-// ==============================
-// ✅ 精确到 年月日 时分 筛选
-// ==============================
-function loadOrders() {
-  let orders = JSON.parse(localStorage.getItem("nmsOrders") || "[]");
-  orders = orders.filter(o => Date.now() - o.timestamp < 14*86400000);
+async function loadOrders() {
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+  let res = await fetch(`${CLOUD_API}?sheet=orders`);
+  let orders = await res.json();
+  orders = orders.filter(o => o.timestamp && (Date.now() - o.timestamp < 14*86400000));
 
-  const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
-
-  if (startDate) {
-    const startTime = new Date(startDate).getTime();
-    orders = orders.filter(o => o.timestamp >= startTime);
-  }
-  if (endDate) {
-    const endTime = new Date(endDate + " 23:59:59").getTime();
-    orders = orders.filter(o => o.timestamp <= endTime);
-  }
+  if (start) orders = orders.filter(o => o.createTime.substring(0,10) >= start);
+  if (end) orders = orders.filter(o => o.createTime.substring(0,10) <= end);
+  orders.sort((a,b) => b.timestamp - a.timestamp);
 
   const list = document.getElementById("orderList");
   list.innerHTML = "";
@@ -109,64 +100,45 @@ function loadOrders() {
       <p>日期：${o.createTime}</p>
       <p>姓名：${o.name}　电话：${o.phone}</p>
       <p>地址：${o.address}</p>
-      <p>商品：${o.goods.map(i=>i.name+" ×"+i.num).join("，")}</p>
-      <p>编码：<span class="code">${o.goods.map(i=>i.code).join(" / ")}</span></p>
+      <p>商品：${o.goods}</p>
+      <p>编码：<span class="code">${o.codes || ""}</span></p>
       <p>物流：${o.logistics || "未发货"}</p>
-      <input type="text" id="log_${o.orderNo}" placeholder="输入物流单号">
+      <input type="text" id="log_${o.orderNo}" placeholder="输入物流单号" value="${o.logistics||''}">
       <button class="btn btn-blue" onclick="saveLog('${o.orderNo}')">保存发货</button>
     `;
     list.appendChild(div);
   });
 }
 
-// 保存物流
-function saveLog(orderNo) {
+async function saveLog(orderNo) {
   const log = document.getElementById(`log_${orderNo}`).value.trim();
   if (!log) return alert("请输入物流单号");
-  let orders = JSON.parse(localStorage.getItem("nmsOrders") || "[]");
-  const idx = orders.findIndex(x => x.orderNo === orderNo);
-  if (idx !== -1) {
-    orders[idx].logistics = log;
-    localStorage.setItem("nmsOrders", JSON.stringify(orders));
-    alert("发货成功");
-    loadOrders();
-  }
+  await fetch(`${CLOUD_API}?sheet=orders&orderNo=${orderNo}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: { logistics: log } })
+  });
+  alert("发货成功");
+  loadOrders();
 }
 
-// ==============================
-// ✅ 精确导出筛选结果
-// ==============================
-function exportFilteredOrders() {
-  let orders = JSON.parse(localStorage.getItem("nmsOrders") || "[]");
-  orders = orders.filter(o => Date.now() - o.timestamp < 14*86400000);
+async function exportFilteredOrders() {
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+  let res = await fetch(`${CLOUD_API}?sheet=orders`);
+  let orders = await res.json();
+  orders = orders.filter(o => o.timestamp && (Date.now() - o.timestamp < 14*86400000));
+  if (start) orders = orders.filter(o => o.createTime.substring(0,10) >= start);
+  if (end) orders = orders.filter(o => o.createTime.substring(0,10) <= end);
 
-  const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
-
-  if (startDate) {
-    const startTime = new Date(startDate).getTime();
-    orders = orders.filter(o => o.timestamp >= startTime);
-  }
-  if (endDate) {
-    const endTime = new Date(endDate + " 23:59:59").getTime();
-    orders = orders.filter(o => o.timestamp <= endTime);
-  }
-
-  if (orders.length === 0) {
-    alert("当前筛选条件下没有订单可导出");
-    return;
-  }
-
-  let csv = "订单号,下单日期,收件人,电话,地址,商品名称,数量,商品编码,物流单号\n";
+  if (orders.length === 0) { alert("当前筛选条件下没有订单可导出"); return; }
+  let csv = "订单号,下单日期,收件人,电话,地址,商品名称,商品编码,数量,物流单号\n";
   orders.forEach(o => {
-    o.goods.forEach(g => {
-      csv += `${o.orderNo},${o.createTime},${o.name},${o.phone},${o.address},"${g.name}",${g.num},${g.code},${o.logistics || ""}\n`;
-    });
+    csv += `${o.orderNo},${o.createTime},${o.name},${o.phone},${o.address},"${o.goods}","${o.codes||''}","${o.nums||''}",${o.logistics||""}\n`;
   });
-
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" }));
-  a.download = `南漫社订单_${startDate || "全部"}至${endDate || "全部"}.csv`;
+  a.download = `南漫社订单_${start||"全部"}至${end||"全部"}.csv`;
   a.click();
 }
 
