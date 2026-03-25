@@ -2,241 +2,642 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>南漫社达人寄样下单</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>南漫社 · 达人寄样系统</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui, sans-serif;}
-body{background:#f5f7fa;padding:8px;max-width:700px;margin:0 auto;}
-.title{text-align:center;font-size:20px;font-weight:bold;margin:14px 0;color:#d81e06;}
-
-.main-img-box{text-align:center;margin-bottom:14px;}
-.main-img{width:100%;max-width:600px;border-radius:12px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.1);}
-.modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:999;align-items:center;justify-content:center;}
-.modal-img{max-width:95%;max-height:95%;border-radius:8px;}
-
-.goods-grid{
-  display:grid;
-  grid-template-columns:repeat(2, 1fr);
-  gap:8px;
-  margin-bottom:14px;
-}
-.goods-item{
-  display:flex;
-  align-items:center;
-  background:#fff;
-  border-radius:8px;
-  padding:8px;
-  box-shadow:0 1px 3px rgba(0,0,0,0.05);
-}
-.goods-info{flex:1;}
-.goods-name{font-size:13px;color:#333;line-height:1.3;}
-.add-btn{padding:5px 8px;background:#d81e06;color:#fff;border:none;border-radius:6px;font-size:12px;white-space:nowrap;}
-
-.cart-box{background:#fff;border-radius:10px;padding:12px;margin:14px 0;}
-.cart-title{font-size:15px;font-weight:bold;margin-bottom:8px;}
-.cart-item{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed #eee;font-size:13px;}
-.num{color:#d81e06;font-weight:bold;}
-
-.parse-row{display:flex;gap:8px;margin-bottom:8px;}
-.parse-left{flex:1;}
-.parse-right{flex:1;}
-.parse-btn{width:100%;padding:10px;background:#1677ff;color:#fff;border:none;border-radius:6px;font-size:14px;margin-bottom:8px;}
-
-.form-box{background:#fff;border-radius:10px;padding:12px;margin:14px 0;}
-.form-title{font-size:15px;font-weight:bold;margin-bottom:10px;}
-input{width:100%;padding:10px;margin-bottom:8px;border:1px solid #e1e5e9;border-radius:6px;font-size:14px;}
-.submit-btn{width:100%;padding:12px;background:#07c160;color:#fff;border:none;border-radius:6px;font-size:15px;font-weight:bold;margin-top:10px;}
-
-.history-box{background:#fff;border-radius:10px;padding:12px;margin:14px 0;}
-.history-title{font-size:15px;font-weight:bold;margin-bottom:8px;}
-.history-item{padding:8px;border-bottom:1px dashed #eee;font-size:13px;}
-
-.order-result{background:#fff;border-radius:10px;padding:12px;margin:12px 0;display:none;}
-.order-result p{margin:5px 0;font-size:14px;}
-
-.query-box{background:#fff;border-radius:10px;padding:12px;text-align:center;margin-bottom:20px;}
-.query-input{width:100%;max-width:240px;font-size:14px;padding:10px;}
-.query-btn{padding:10px 14px;background:#1677ff;color:#fff;border:none;border-radius:6px;margin-top:6px;}
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, 'Segoe UI', '微软雅黑', sans-serif;
+  }
+  body {
+    background: #f5f7fb;
+    padding: 12px;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  /* 全局卡片风格 */
+  .card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s;
+  }
+  .title-main {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #d81e06;
+    margin: 8px 0 12px;
+    letter-spacing: 1px;
+  }
+  /* 主图区域 */
+  .main-img-box {
+    text-align: center;
+    margin-bottom: 12px;
+  }
+  .main-img {
+    width: 100%;
+    max-width: 600px;
+    border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.1);
+    transition: transform 0.1s ease;
+  }
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-img {
+    max-width: 92%;
+    max-height: 92%;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  /* 商品网格 2列 */
+  .goods-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .goods-item {
+    background: #fff;
+    border-radius: 16px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    border: 1px solid #f0f0f0;
+    transition: all 0.2s;
+  }
+  .goods-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e4f;
+    line-height: 1.35;
+    word-break: break-word;
+    padding-right: 6px;
+  }
+  .add-btn {
+    background: #d81e06;
+    border: none;
+    color: white;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 30px;
+    cursor: pointer;
+    transition: 0.2s;
+    white-space: nowrap;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  }
+  .add-btn:active { transform: scale(0.96); background: #b11704; }
+  /* 购物车 */
+  .cart-box {
+    background: #fef6e0;
+    border-radius: 20px;
+    padding: 14px;
+    margin: 12px 0;
+  }
+  .cart-title {
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 10px;
+    color: #b45f06;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cart-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed #ffe0a3;
+    font-size: 13px;
+  }
+  .num {
+    color: #d81e06;
+    font-weight: 700;
+    background: #fff0e6;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  /* 表单区域 */
+  .form-title {
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: #1f2d3d;
+  }
+  input, .parse-btn {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+    margin-bottom: 10px;
+    background: white;
+    transition: 0.2s;
+  }
+  input:focus {
+    border-color: #d81e06;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(216,30,6,0.1);
+  }
+  .parse-btn {
+    background: #1677ff;
+    color: white;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+  }
+  .parse-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .parse-left, .parse-right {
+    flex: 1;
+    min-width: 130px;
+  }
+  .submit-btn {
+    background: #07c160;
+    color: white;
+    font-weight: 700;
+    font-size: 16px;
+    border: none;
+    border-radius: 40px;
+    padding: 14px;
+    width: 100%;
+    margin-top: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 2px 6px rgba(7,193,96,0.3);
+  }
+  .submit-btn:active { transform: scale(0.98); }
+  /* 历史 & 查询 */
+  .history-box, .query-box, .order-result {
+    border-radius: 20px;
+    background: white;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .history-item {
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+    color: #2c3e50;
+  }
+  .order-result {
+    background: #eef9f0;
+    display: none;
+    border-left: 5px solid #07c160;
+  }
+  .query-btn {
+    background: #1677ff;
+    border: none;
+    padding: 10px;
+    border-radius: 30px;
+    font-weight: 600;
+    margin-top: 6px;
+    color: white;
+    cursor: pointer;
+  }
+  .query-input {
+    margin-bottom: 6px;
+  }
+  .badge {
+    background: #d81e06;
+    color: white;
+    font-size: 12px;
+    border-radius: 30px;
+    padding: 2px 8px;
+  }
+  hr {
+    margin: 10px 0;
+  }
+  .flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  button {
+    cursor: pointer;
+  }
+  .tip-text {
+    font-size: 12px;
+    color: #888;
+    margin-top: -6px;
+    margin-bottom: 8px;
+  }
 </style>
 </head>
 <body>
 
-<h1 class="title">南漫社达人寄样下单</h1>
+<h1 class="title-main">🎁 南漫社达人寄样下单</h1>
 
+<!-- 主图区域 -->
 <div class="main-img-box">
-  <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/3b1b5266076b4a3c957b0cb0cac158ba.jpg" class="main-img" onclick="openModal()">
+  <img src="https://p3-flow-imagex-sign.byteimg.com/tos-cn-i-a9rns2rl98/3b1b5266076b4a3c957b0cb0cac158ba.jpg" 
+       class="main-img" alt="主视觉" onclick="openModal()">
 </div>
 
 <div class="modal" id="modal" onclick="closeModal()">
-  <img class="modal-img" id="modalImg">
+  <img class="modal-img" id="modalImg" alt="预览图">
 </div>
 
-<div class="goods-grid" id="goodsList"></div>
+<!-- 商品列表 动态2列 -->
+<div class="card" style="padding-bottom: 8px;">
+  <div style="font-weight:600; margin-bottom:10px;">✨ 精选寄样商品</div>
+  <div class="goods-grid" id="goodsList"></div>
+  <div class="tip-text" style="margin-top: 4px;">👆 点击「加购」可多选，支持组合下单</div>
+</div>
 
+<!-- 购物车 -->
 <div class="cart-box">
-  <div class="cart-title">已选商品</div>
+  <div class="cart-title">🛒 已选商品</div>
   <div id="cartList"></div>
 </div>
 
-<div class="form-box">
-  <div class="form-title">收货信息（自动解析）</div>
-  <input type="text" id="addressRaw" placeholder="粘贴地址+姓名+电话">
-  <button class="parse-btn" onclick="parseAddress()">📌 自动解析</button>
+<!-- 收货表单 + 智能解析 -->
+<div class="card">
+  <div class="form-title">📮 收货信息（一键解析）</div>
+  <input type="text" id="addressRaw" placeholder="例如：张三 13812345678 上海市黄浦区xx路18号" autocomplete="off">
+  <button class="parse-btn" onclick="parseAddress()">✨ 智能解析姓名/电话/地址</button>
   <div class="parse-row">
     <div class="parse-left">
-      <input type="text" id="name" placeholder="收件人">
+      <input type="text" id="name" placeholder="收件人姓名">
       <input type="text" id="phone" placeholder="手机号码">
     </div>
     <div class="parse-right">
       <input type="text" id="address" placeholder="详细地址">
     </div>
   </div>
-  <button class="submit-btn" onclick="submitOrder()">提交寄样订单</button>
+  <button class="submit-btn" onclick="submitOrder()">✅ 提交寄样订单</button>
 </div>
 
+<!-- 历史订单 -->
 <div class="history-box">
-  <div class="history-title">我的历史订单</div>
+  <div class="flex-between">
+    <div class="form-title" style="margin-bottom:0;">📋 我的历史订单</div>
+    <span class="badge" style="background:#aaa;">近14天</span>
+  </div>
   <div id="historyList"></div>
 </div>
 
+<!-- 提交成功展示面板 -->
 <div class="order-result" id="orderResult">
-  <p style="color:#07c160;font-weight:bold;">✅ 提交成功</p>
-  <p>订单号：<span id="orderNo" style="color:#d81e06;"></span></p>
-  <p>下单日期：<span id="createTime"></span></p>
-  <p>商品：<span id="orderGoods"></span></p>
-  <p>收件人：<span id="showName"></span></p>
-  <p>电话：<span id="showPhone"></span></p>
-  <p>地址：<span id="showAddress"></span></p>
+  <p style="color:#07c160;font-weight:700;">✅ 提交成功！商家将尽快发货</p>
+  <p>📦 订单号：<span id="orderNo" style="color:#d81e06;font-weight:bold;"></span></p>
+  <p>🕒 下单时间：<span id="createTime"></span></p>
+  <p>🎁 商品：<span id="orderGoods"></span></p>
+  <p>👤 收件人：<span id="showName"></span> &nbsp; 📞 <span id="showPhone"></span></p>
+  <p>📍 地址：<span id="showAddress"></span></p>
 </div>
 
+<!-- 物流查询模块 -->
 <div class="query-box">
-  <input class="query-input" id="queryOrderNo" placeholder="输入订单号查询">
-  <button class="query-btn" onclick="queryOrder()">查询订单/物流</button>
-  <p id="queryResult"></p>
+  <div class="form-title" style="margin-bottom:6px;">🔎 订单物流跟踪</div>
+  <input class="query-input" id="queryOrderNo" placeholder="输入订单号查询 (例如 NMS1734...)" autocomplete="off">
+  <button class="query-btn" onclick="queryOrder()">📬 查询订单 / 物流单号</button>
+  <div id="queryResult" style="margin-top:12px; font-size:13px;"></div>
 </div>
 
 <script>
-const CLOUD_API = "https://sheetdb.io/api/v1/mi1l5x8kbswc5";
-let cart = [];
+  // ---------- 全局数据模型 ----------
+  // 存储KEY定义：与商家后台完全一致
+  const STORAGE_GOODS = "goodsData";      // 商品列表 [{code, name}]
+  const STORAGE_ORDERS = "nmsOrders";      // 订单数组
+  const STORAGE_USER = "userInfo";         // 缓存用户上次填的信息
 
-async function loadGoodsFromCloud() {
-  try {
-    let res = await fetch(`${CLOUD_API}?sheet=goods`);
-    let goods = await res.json();
-    let box = document.getElementById("goodsList");
-    box.innerHTML = "";
+  let cart = [];   // 当前购物车 [{ name, code, num }]
+
+  // ---------- 1. 商品管理：从localStorage同步商家上传的商品 ----------
+  function loadGoodsFromAdmin() {
+    let goods = JSON.parse(localStorage.getItem(STORAGE_GOODS) || "[]");
+    // 若后台还未上传商品，提供默认示例商品（避免空白）
+    if (!goods || goods.length === 0) {
+      goods = [
+        { code: "6941899614135", name: "红岁驰春 迷你吧唧1对" },
+        { code: "6941899614234", name: "南漫社限定亚克力立牌" },
+        { code: "6941899614331", name: "星尘回忆 色纸套装" },
+        { code: "6941899614438", name: "镭射票夹 随机款" }
+      ];
+      // 初次使用自动写入默认商品（模拟商家常用品，且不会覆盖商家已有）
+      if (!localStorage.getItem(STORAGE_GOODS)) {
+        localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
+      }
+    }
+    const goodsContainer = document.getElementById("goodsList");
+    if (!goodsContainer) return;
+    goodsContainer.innerHTML = "";
     goods.forEach(item => {
-      if (item.code && item.name) {
-        let el = document.createElement("div");
-        el.className = "goods-item";
-        el.innerHTML = `
-          <div class="goods-info"><div class="goods-name">${item.name}</div></div>
-          <button class="add-btn" onclick="addCart('${item.name}','${item.code}')">加购</button>
-        `;
-        box.appendChild(el);
+      const div = document.createElement("div");
+      div.className = "goods-item";
+      div.innerHTML = `
+        <div class="goods-name">${escapeHtml(item.name)}</div>
+        <button class="add-btn" data-code="${item.code}" data-name="${escapeHtml(item.name)}">➕ 加购</button>
+      `;
+      const btn = div.querySelector(".add-btn");
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        addCart(item.name, item.code);
+      });
+      goodsContainer.appendChild(div);
+    });
+  }
+
+  // 简单防XSS
+  function escapeHtml(str) {
+    if(!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if(m === '&') return '&amp;';
+      if(m === '<') return '&lt;';
+      if(m === '>') return '&gt;';
+      return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+      return c;
+    });
+  }
+
+  // 购物车操作
+  function addCart(name, code) {
+    const exist = cart.find(i => i.name === name && i.code === code);
+    if (exist) {
+      exist.num += 1;
+    } else {
+      cart.push({ name, code, num: 1 });
+    }
+    renderCart();
+    // 轻微反馈
+    const btn = event?.target;
+    if(btn) {
+      btn.style.transform = "scale(0.95)";
+      setTimeout(()=> { if(btn) btn.style.transform = ""; }, 100);
+    }
+  }
+
+  function renderCart() {
+    const cartDiv = document.getElementById("cartList");
+    if (!cartDiv) return;
+    if (cart.length === 0) {
+      cartDiv.innerHTML = "<div style='color:#b97f10; padding:8px 0;'>✨ 暂未选择商品，点击上方加购～</div>";
+      return;
+    }
+    cartDiv.innerHTML = cart.map(item => `
+      <div class="cart-item">
+        <span>${escapeHtml(item.name)}</span>
+        <span>× <span class="num">${item.num}</span></span>
+      </div>
+    `).join("");
+  }
+
+  // ---------- 地址智能解析 ----------
+  function parseAddress() {
+    const raw = document.getElementById("addressRaw").value.trim();
+    if (!raw) {
+      alert("请粘贴包含姓名、手机号和地址的文字");
+      return;
+    }
+    // 手机号匹配 (1开头的11位数字)
+    const phoneMatch = raw.match(/1[3-9]\d{9}/);
+    const phone = phoneMatch ? phoneMatch[0] : "";
+    // 匹配中文姓名（2~6个连续汉字，且不包含地址关键词）
+    let nameMatch = raw.match(/[\u4e00-\u9fa5]{2,6}(?=[^0-9]*?)/);
+    if (!nameMatch && phone) {
+      // 尝试找手机号前的连续中文
+      const beforePhone = raw.split(phone)[0];
+      const cnMatch = beforePhone.match(/[\u4e00-\u9fa5]{2,6}$/);
+      if (cnMatch) nameMatch = cnMatch;
+    }
+    let name = nameMatch ? nameMatch[0] : "";
+    // 地址 = 去掉手机号和姓名后的剩余部分
+    let address = raw;
+    if (phone) address = address.replace(phone, "");
+    if (name) address = address.replace(name, "");
+    address = address.replace(/\s+/g, " ").trim();
+    if (address === "") address = raw.replace(phone, "").replace(name, "").trim();
+    document.getElementById("name").value = name;
+    document.getElementById("phone").value = phone;
+    document.getElementById("address").value = address;
+    alert("📌 解析完成！请核对收件信息");
+  }
+
+  // 订单编号生成 (与后台风格统一)
+  function createOrderNo() {
+    return "NMS" + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase();
+  }
+
+  // 清理14天前订单（同时供后台数据同步）
+  function cleanOldOrders() {
+    let orders = JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
+    const now = Date.now();
+    const filtered = orders.filter(o => (now - (o.timestamp || 0)) < 14 * 86400000);
+    if (filtered.length !== orders.length) {
+      localStorage.setItem(STORAGE_ORDERS, JSON.stringify(filtered));
+    }
+  }
+
+  // 展示历史订单
+  function showHistory() {
+    const orders = JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
+    const historyDiv = document.getElementById("historyList");
+    if (!historyDiv) return;
+    if (orders.length === 0) {
+      historyDiv.innerHTML = "<div style='color:#aaa; padding:12px 0;'>暂无下单记录，快去选购吧～</div>";
+      return;
+    }
+    // 只显示最近6条简洁样式
+    const recent = orders.slice(0, 8);
+    historyDiv.innerHTML = recent.map(o => `
+      <div class="history-item">
+        <div><strong>${o.orderNo}</strong>  <span style="color:#888; font-size:12px;">${o.createTime || ''}</span></div>
+        <div>🎁 ${(o.goods || []).map(g=>g.name+"×"+g.num).join("、")}</div>
+        <div style="font-size:12px;">🚚 物流：${o.logistics || "待发货"}</div>
+      </div>
+    `).join("");
+    if(orders.length > 8) historyDiv.innerHTML += "<div style='text-align:center; font-size:12px; color:#999; margin-top:6px;'>仅展示最近8条</div>";
+  }
+
+  // 提交订单核心逻辑：同时写入localStorage 商家后台可读
+  function submitOrder() {
+    const name = document.getElementById("name").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const address = document.getElementById("address").value.trim();
+    if (!name || !phone || !address) {
+      alert("请填写完整的收件人、手机号、地址");
+      return;
+    }
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      alert("手机号格式不正确（11位数字，1开头）");
+      return;
+    }
+    if (cart.length === 0) {
+      alert("请至少选择一件商品加购");
+      return;
+    }
+
+    // 保存用户信息到本地存储（方便下次使用）
+    localStorage.setItem(STORAGE_USER, JSON.stringify({ name, phone, address }));
+
+    const orderNo = createOrderNo();
+    const nowDate = new Date();
+    const year = nowDate.getFullYear();
+    const month = String(nowDate.getMonth() + 1).padStart(2, '0');
+    const day = String(nowDate.getDate()).padStart(2, '0');
+    const hour = String(nowDate.getHours()).padStart(2, '0');
+    const minute = String(nowDate.getMinutes()).padStart(2, '0');
+    const createTime = `${year}-${month}-${day} ${hour}:${minute}`;
+    const timestamp = nowDate.getTime();
+
+    // 深拷贝购物车商品
+    const goodsSnapshot = cart.map(item => ({ ...item }));
+    const newOrder = {
+      orderNo,
+      name,
+      phone,
+      address,
+      goods: goodsSnapshot,
+      createTime,
+      logistics: "",      // 初始无物流
+      timestamp: timestamp
+    };
+
+    // 读取已有订单，写入最前
+    let orders = JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
+    orders.unshift(newOrder);
+    // 同时清理超过14天旧单 (保持整洁)
+    orders = orders.filter(o => (Date.now() - (o.timestamp || 0)) < 14 * 86400000);
+    localStorage.setItem(STORAGE_ORDERS, JSON.stringify(orders));
+
+    // 展示成功面板
+    const resultDiv = document.getElementById("orderResult");
+    document.getElementById("orderNo").innerText = orderNo;
+    document.getElementById("createTime").innerText = createTime;
+    document.getElementById("orderGoods").innerText = cart.map(i=>`${i.name}×${i.num}`).join("，");
+    document.getElementById("showName").innerText = name;
+    document.getElementById("showPhone").innerText = phone;
+    document.getElementById("showAddress").innerText = address;
+    resultDiv.style.display = "block";
+    setTimeout(() => {
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+    }, 100);
+
+    // 清空购物车
+    cart = [];
+    renderCart();
+    // 刷新历史订单列表
+    showHistory();
+
+    // 额外可选：弹出提示
+    alert(`订单提交成功！\n订单号：${orderNo}\n商家将在24小时内处理并发货`);
+  }
+
+  // 查询订单 + 物流（支持商家后台填写的物流单号）
+  function queryOrder() {
+    const queryNo = document.getElementById("queryOrderNo").value.trim();
+    const resultP = document.getElementById("queryResult");
+    if (!queryNo) {
+      resultP.innerHTML = "<span style='color:#e67e22;'>请输入订单号查询</span>";
+      return;
+    }
+    const orders = JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
+    const target = orders.find(o => o.orderNo === queryNo);
+    if (!target) {
+      resultP.innerHTML = `<span style="color:#d81e06;">❌ 未找到订单 ${queryNo}，请核对订单号</span>`;
+      return;
+    }
+    const goodsText = (target.goods || []).map(g => `${g.name} x${g.num}`).join("、");
+    const logisticsInfo = target.logistics && target.logistics !== "" ? target.logistics : "暂未发货，商家备货中";
+    resultP.innerHTML = `
+      <div style="background:#f8f9fc; border-radius:16px; padding:10px;">
+        <div><strong>✅ 订单号：</strong>${target.orderNo}</div>
+        <div><strong>📅 下单时间：</strong>${target.createTime}</div>
+        <div><strong>🎁 商品明细：</strong>${goodsText}</div>
+        <div><strong>📦 物流信息：</strong>${logisticsInfo}</div>
+        <div><strong>👤 收件人：</strong>${target.name} ${target.phone}</div>
+        <div><strong>🏠 地址：</strong>${target.address}</div>
+      </div>
+    `;
+    resultP.style.color = "#1f2d3d";
+  }
+
+  // 加载缓存的用户信息
+  function loadUserCache() {
+    const user = JSON.parse(localStorage.getItem(STORAGE_USER) || "{}");
+    if (user.name) document.getElementById("name").value = user.name;
+    if (user.phone) document.getElementById("phone").value = user.phone;
+    if (user.address) document.getElementById("address").value = user.address;
+  }
+
+  // 监听localStorage变化（多窗口同步，如果用户在后台修改商品数据或物流，用户端可实时刷新商品/历史订单）
+  // 当商家后台修改商品或更新物流时，触发重新加载商品列表和历史订单（提升协同体验）
+  function initStorageListener() {
+    window.addEventListener("storage", (e) => {
+      // 商品数据变动 或 订单数据变动，实时刷新界面
+      if (e.key === STORAGE_GOODS) {
+        loadGoodsFromAdmin();
+      }
+      if (e.key === STORAGE_ORDERS) {
+        // 订单变动（商家发货物流更新）重新展示历史订单
+        showHistory();
+        // 如果有正在展示的结果面板可不清除
+        const queryInput = document.getElementById("queryOrderNo").value;
+        if (queryInput) queryOrder();  // 若用户正查询可刷新物流状态
       }
     });
-  } catch (e) {
-    alert("商品加载失败，请刷新");
   }
-}
 
-function addCart(name, code) {
-  const exist = cart.find(i => i.name === name);
-  exist ? exist.num++ : cart.push({ name, code, num: 1 });
-  renderCart();
-}
+  // 页面加载与清理旧单
+  window.onload = function() {
+    // 清理超期订单（保证后台与用户端数据干净）
+    cleanOldOrders();
+    // 加载商品
+    loadGoodsFromAdmin();
+    // 加载购物车状态
+    renderCart();
+    // 加载历史订单
+    showHistory();
+    // 加载用户缓存
+    loadUserCache();
+    // 启动跨页面监听 (商家后台更新商品或发货，用户端自动同步)
+    initStorageListener();
+  };
 
-function renderCart() {
-  const list = document.getElementById("cartList");
-  list.innerHTML = cart.length === 0
-    ? "<div style='color:#999;padding:6px;'>未选择商品</div>"
-    : cart.map(i => `<div class="cart-item"><span>${i.name}</span><span>×<span class="num">${i.num}</span></span></div>`).join("");
-}
-
-function parseAddress() {
-  const raw = document.getElementById("addressRaw").value.trim();
-  if (!raw) return alert("请粘贴内容");
-  const phone = raw.match(/1[3-9]\d{9}/)?.[0] || "";
-  const name = raw.match(/[\u4e00-\u9fa5]{2,6}/)?.[0] || "";
-  const address = raw.replace(name, "").replace(phone, "").trim();
-  document.getElementById("name").value = name;
-  document.getElementById("phone").value = phone;
-  document.getElementById("address").value = address;
-  alert("解析完成");
-}
-
-function openModal() {
-  document.getElementById("modalImg").src = document.querySelector(".main-img").src;
-  document.getElementById("modal").style.display = "flex";
-}
-function closeModal() {
-  document.getElementById("modal").style.display = "none";
-}
-
-async function submitOrder() {
-  const name = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const address = document.getElementById("address").value.trim();
-  if (!name||!phone||!address||cart.length===0) return alert("请完善信息");
-
-  const orderNo = "NMS" + Date.now() + Math.random().toString(36).substr(2,6).toUpperCase();
-  const now = new Date();
-  const createTime = now.getFullYear()+"-"+(now.getMonth()+1).toString().padStart(2,0)+"-"+now.getDate().toString().padStart(2,0)
-  +" "+now.getHours().toString().padStart(2,0)+":"+now.getMinutes().toString().padStart(2,0);
-  const timestamp = now.getTime();
-
-  let orderItems = cart.map(i => `${i.name} ×${i.num}`).join("，");
-  let codes = cart.map(i => i.code).join(" / ");
-  let nums = cart.map(i => i.num).join(" / ");
-
-  try {
-    await fetch(CLOUD_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        data: [{
-          orderNo, name, phone, address, goods: orderItems, codes, nums, createTime, timestamp, logistics: ""
-        }]
-      })
-    });
-
-    document.getElementById("orderResult").style.display="block";
-    document.getElementById("orderNo").innerText=orderNo;
-    document.getElementById("createTime").innerText=createTime;
-    document.getElementById("orderGoods").innerText=orderItems;
-    document.getElementById("showName").innerText=name;
-    document.getElementById("showPhone").innerText=phone;
-    document.getElementById("showAddress").innerText=address;
-    cart = []; renderCart();
-  } catch (e) {
-    alert("提交失败，请重试");
+  // 图片预览弹窗
+  function openModal() {
+    const mainImg = document.querySelector(".main-img");
+    if (mainImg) {
+      document.getElementById("modalImg").src = mainImg.src;
+      document.getElementById("modal").style.display = "flex";
+    }
   }
-}
-
-async function queryOrder() {
-  const no = document.getElementById("queryOrderNo").value.trim();
-  const res = document.getElementById("queryResult");
-  if (!no) { res.innerHTML="请输入订单号"; res.style.color="red"; return; }
-  let r = await fetch(`${CLOUD_API}?sheet=orders&orderNo=${no}`);
-  let arr = await r.json();
-  if (arr.length === 0) {
-    res.innerHTML="未找到订单"; res.style.color="red";
-  } else {
-    let o = arr[0];
-    res.innerHTML=`订单：${o.orderNo}<br>日期：${o.createTime}<br>商品：${o.goods}<br>物流：${o.logistics || "未发货"}`;
-    res.style.color="#07c160";
+  function closeModal() {
+    document.getElementById("modal").style.display = "none";
   }
-}
 
-window.onload = function() {
-  loadGoodsFromCloud();
-  const u = JSON.parse(localStorage.getItem("userInfo")||"{}");
-  document.getElementById("name").value = u.name||"";
-  document.getElementById("phone").value = u.phone||"";
-  document.getElementById("address").value = u.address||"";
-  renderCart();
-};
+  // 挂载全局方法 (确保按钮onclick调用)
+  window.addCart = addCart;
+  window.parseAddress = parseAddress;
+  window.submitOrder = submitOrder;
+  window.queryOrder = queryOrder;
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+  // 暴露部分函数用于调试
 </script>
 </body>
 </html>
