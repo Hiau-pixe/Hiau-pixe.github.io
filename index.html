@@ -14,7 +14,6 @@ body{background:#f5f7fa;padding:8px;max-width:700px;margin:0 auto;}
 .modal{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:999;align-items:center;justify-content:center;}
 .modal-img{max-width:95%;max-height:95%;border-radius:8px;}
 
-/* 商品列表：2列布局 + 缩小 */
 .goods-grid{
   display:grid;
   grid-template-columns:repeat(2, 1fr);
@@ -72,7 +71,6 @@ input{width:100%;padding:10px;margin-bottom:8px;border:1px solid #e1e5e9;border-
   <img class="modal-img" id="modalImg">
 </div>
 
-<!-- 商品列表：2列布局 -->
 <div class="goods-grid" id="goodsList"></div>
 
 <div class="cart-box">
@@ -118,22 +116,29 @@ input{width:100%;padding:10px;margin-bottom:8px;border:1px solid #e1e5e9;border-
 </div>
 
 <script>
+const CLOUD_API = "https://sheetdb.io/api/v1/mi1l5x8kbswc5";
 let cart = [];
 
-// 渲染商品：2列布局
-function loadGoodsFromAdmin() {
-  const goods = JSON.parse(localStorage.getItem("goodsData") || "[]");
-  const box = document.getElementById("goodsList");
-  box.innerHTML = "";
-  goods.forEach(item => {
-    let el = document.createElement("div");
-    el.className = "goods-item";
-    el.innerHTML = `
-      <div class="goods-info"><div class="goods-name">${item.name}</div></div>
-      <button class="add-btn" onclick="addCart('${item.name}','${item.code}')">加购</button>
-    `;
-    box.appendChild(el);
-  });
+async function loadGoodsFromCloud() {
+  try {
+    let res = await fetch(`${CLOUD_API}?sheet=goods`);
+    let goods = await res.json();
+    let box = document.getElementById("goodsList");
+    box.innerHTML = "";
+    goods.forEach(item => {
+      if (item.code && item.name) {
+        let el = document.createElement("div");
+        el.className = "goods-item";
+        el.innerHTML = `
+          <div class="goods-info"><div class="goods-name">${item.name}</div></div>
+          <button class="add-btn" onclick="addCart('${item.name}','${item.code}')">加购</button>
+        `;
+        box.appendChild(el);
+      }
+    });
+  } catch (e) {
+    alert("商品加载失败，请刷新");
+  }
 }
 
 function addCart(name, code) {
@@ -169,70 +174,69 @@ function closeModal() {
   document.getElementById("modal").style.display = "none";
 }
 
-function cleanOldOrders() {
-  let orders = JSON.parse(localStorage.getItem("nmsOrders") || "[]");
-  orders = orders.filter(o => Date.now() - o.timestamp < 14*86400000);
-  localStorage.setItem("nmsOrders", JSON.stringify(orders));
+async function submitOrder() {
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const address = document.getElementById("address").value.trim();
+  if (!name||!phone||!address||cart.length===0) return alert("请完善信息");
+
+  const orderNo = "NMS" + Date.now() + Math.random().toString(36).substr(2,6).toUpperCase();
+  const now = new Date();
+  const createTime = now.getFullYear()+"-"+(now.getMonth()+1).toString().padStart(2,0)+"-"+now.getDate().toString().padStart(2,0)
+  +" "+now.getHours().toString().padStart(2,0)+":"+now.getMinutes().toString().padStart(2,0);
+  const timestamp = now.getTime();
+
+  let orderItems = cart.map(i => `${i.name} ×${i.num}`).join("，");
+  let codes = cart.map(i => i.code).join(" / ");
+  let nums = cart.map(i => i.num).join(" / ");
+
+  try {
+    await fetch(CLOUD_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: [{
+          orderNo, name, phone, address, goods: orderItems, codes, nums, createTime, timestamp, logistics: ""
+        }]
+      })
+    });
+
+    document.getElementById("orderResult").style.display="block";
+    document.getElementById("orderNo").innerText=orderNo;
+    document.getElementById("createTime").innerText=createTime;
+    document.getElementById("orderGoods").innerText=orderItems;
+    document.getElementById("showName").innerText=name;
+    document.getElementById("showPhone").innerText=phone;
+    document.getElementById("showAddress").innerText=address;
+    cart = []; renderCart();
+  } catch (e) {
+    alert("提交失败，请重试");
+  }
 }
 
-function showHistory() {
-  const orders = JSON.parse(localStorage.getItem("nmsOrders") || "[]");
-  const list = document.getElementById("historyList");
-  list.innerHTML = orders.length === 0
-    ? "<div style='color:#999'>暂无历史订单</div>"
-    : orders.map(o => `<div class="history-item">${o.createTime}｜${o.orderNo}<br>${o.goods.map(i=>i.name+"×"+i.num).join("，")}</div>`).join("");
-}
-
-function createOrderNo() {
-  return "NMS" + Date.now() + Math.random().toString(36).substr(2,6).toUpperCase();
+async function queryOrder() {
+  const no = document.getElementById("queryOrderNo").value.trim();
+  const res = document.getElementById("queryResult");
+  if (!no) { res.innerHTML="请输入订单号"; res.style.color="red"; return; }
+  let r = await fetch(`${CLOUD_API}?sheet=orders&orderNo=${no}`);
+  let arr = await r.json();
+  if (arr.length === 0) {
+    res.innerHTML="未找到订单"; res.style.color="red";
+  } else {
+    let o = arr[0];
+    res.innerHTML=`订单：${o.orderNo}<br>日期：${o.createTime}<br>商品：${o.goods}<br>物流：${o.logistics || "未发货"}`;
+    res.style.color="#07c160";
+  }
 }
 
 window.onload = function() {
-  loadGoodsFromAdmin();
-  cleanOldOrders();
-  showHistory();
+  loadGoodsFromCloud();
   const u = JSON.parse(localStorage.getItem("userInfo")||"{}");
   document.getElementById("name").value = u.name||"";
   document.getElementById("phone").value = u.phone||"";
   document.getElementById("address").value = u.address||"";
   renderCart();
 };
-
-function submitOrder() {
-  const name = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const address = document.getElementById("address").value.trim();
-  if (!name||!phone||!address||cart.length===0) return alert("请完善信息");
-
-  localStorage.setItem("userInfo", JSON.stringify({name,phone,address}));
-  const orderNo = createOrderNo();
-  const now = new Date();
-  const createTime = now.getFullYear()+"-"+(now.getMonth()+1).toString().padStart(2,0)+"-"+now.getDate().toString().padStart(2,0)
-  +" "+now.getHours().toString().padStart(2,0)+":"+now.getMinutes().toString().padStart(2,0);
-  
-  const order = {orderNo,name,phone,address,goods:[...cart],createTime,logistics:"",timestamp:now.getTime()};
-  const orders = JSON.parse(localStorage.getItem("nmsOrders")||"[]");
-  orders.unshift(order);
-  localStorage.setItem("nmsOrders",JSON.stringify(orders));
-
-  document.getElementById("orderResult").style.display="block";
-  document.getElementById("orderNo").innerText=orderNo;
-  document.getElementById("createTime").innerText=createTime;
-  document.getElementById("orderGoods").innerText=cart.map(i=>i.name+"×"+i.num).join("，");
-  document.getElementById("showName").innerText=name;
-  document.getElementById("showPhone").innerText=phone;
-  document.getElementById("showAddress").innerText=address;
-  
-  cart=[]; renderCart(); showHistory();
-}
-
-function queryOrder() {
-  const no = document.getElementById("queryOrderNo").value.trim();
-  const res = document.getElementById("queryResult");
-  const order = JSON.parse(localStorage.getItem("nmsOrders")||"[]").find(o=>o.orderNo===no);
-  if(!order) { res.innerHTML="未找到订单"; res.style.color="red"; }
-  else { res.innerHTML=`订单：${order.orderNo}<br>日期：${order.createTime}<br>商品：${order.goods.map(i=>i.name+"×"+i.num).join("，")}<br>物流：${order.logistics||"未发货"}`; res.style.color="#07c160"; }
-}
 </script>
 </body>
 </html>
