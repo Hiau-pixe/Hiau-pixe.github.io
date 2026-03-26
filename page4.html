@@ -49,10 +49,6 @@
     cursor: pointer;
     margin-right: 10px;
     margin-bottom: 8px;
-    transition: opacity 0.2s;
-  }
-  .btn:hover {
-    opacity: 0.85;
   }
   .btn-red {
     background: #d81e06;
@@ -136,6 +132,13 @@
     border-radius: 40px;
     border: 1px solid #ddd;
   }
+  .badge-shipped {
+    background: #e6f7e6;
+    color: #2c6e2c;
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-size: 12px;
+  }
   .search-box {
     background: #f8f9fa;
     padding: 12px 16px;
@@ -172,75 +175,6 @@
     text-align: center;
     box-shadow: 0 6px 20px rgba(0,0,0,0.1);
   }
-  .goods-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 12px;
-  }
-  .goods-table th, .goods-table td {
-    border: 1px solid #e2e8f0;
-    padding: 8px 12px;
-    text-align: left;
-    font-size: 13px;
-  }
-  .goods-table th {
-    background: #f8f9fa;
-  }
-  .delete-goods-btn {
-    background: #ff4d4f;
-    color: white;
-    border: none;
-    border-radius: 20px;
-    padding: 4px 12px;
-    cursor: pointer;
-    font-size: 12px;
-  }
-  .modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-  }
-  .modal-content {
-    background: white;
-    border-radius: 20px;
-    padding: 24px;
-    max-width: 500px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-  }
-  .success-msg {
-    background: #e6f7e6;
-    color: #2c6e2c;
-    padding: 8px 12px;
-    border-radius: 20px;
-    margin-top: 12px;
-    font-size: 13px;
-  }
-  .error-msg {
-    background: #fff1ed;
-    color: #d81e06;
-    padding: 8px 12px;
-    border-radius: 20px;
-    margin-top: 12px;
-    font-size: 13px;
-  }
-  .loading-spinner {
-    text-align: center;
-    padding: 40px;
-    color: #666;
-  }
-  .refresh-btn {
-    background: #1677ff;
-    margin-left: 10px;
-  }
 </style>
 </head>
 <body>
@@ -260,16 +194,12 @@
     <button class="btn" onclick="uploadGoods()">📤 上传并覆盖商品</button>
     <button class="btn btn-blue" onclick="exportSampleTemplate()">📎 下载商品模板</button>
     <button class="btn btn-outline" onclick="viewCurrentGoods()">👁️ 查看商品列表</button>
-    <button class="btn btn-outline" onclick="showAddGoodsModal()">➕ 手动添加商品</button>
   </div>
-  <div id="goodsPreview"></div>
+  <div id="goodsPreview" style="font-size:13px; color:#2c6e2c;"></div>
 </div>
 
 <div class="admin-card">
-  <div class="card-title">
-    📋 订单管理中心（所有达人订单）
-    <button class="btn refresh-btn" onclick="loadAllOrders()" style="font-size:12px; padding:4px 12px;">🔄 刷新订单</button>
-  </div>
+  <div class="card-title">📋 订单管理中心（所有达人订单）</div>
   <div class="search-box">
     <div class="flex-row">
       <input type="text" id="searchOrderNo" class="search-input" placeholder="🔍 按订单号精确查询">
@@ -280,7 +210,7 @@
   <div class="flex-row">
     <input type="date" id="startDate">
     <input type="date" id="endDate">
-    <button class="btn btn-blue" onclick="filterOrdersByDate()">🔍 筛选</button>
+    <button class="btn btn-blue" onclick="loadOrders()">🔍 筛选</button>
     <button class="btn btn-red" onclick="exportFilteredOrders()">📥 导出筛选结果</button>
     <span class="stats-badge" id="orderCountBadge">订单数: --</span>
   </div>
@@ -291,32 +221,10 @@
       <button class="btn btn-blue" onclick="batchUploadLogistics()">🚚 批量更新</button>
       <button class="btn btn-outline" onclick="downloadLogisticsTemplate()">📎 下载模板</button>
     </div>
-    <div style="font-size:12px;color:#666;margin-top:6px;">格式：订单号,物流单号（每行一条）</div>
+    <div style="font-size:12px;color:#666;margin-top:6px;">格式：订单号,物流单号</div>
   </div>
-  <div id="orderList" class="order-list-container">
-    <div class="loading-spinner">📦 加载订单中...</div>
-  </div>
+  <div id="orderList" class="order-list-container"></div>
 </div>
-</div>
-
-<!-- 商品列表模态框 -->
-<div id="goodsModal" class="modal">
-  <div class="modal-content">
-    <h3 style="margin-bottom:16px;">📦 当前商品列表</h3>
-    <div id="goodsListContainer"></div>
-    <button class="btn btn-outline" onclick="closeGoodsModal()" style="margin-top:16px;">关闭</button>
-  </div>
-</div>
-
-<!-- 添加商品模态框 -->
-<div id="addGoodsModal" class="modal">
-  <div class="modal-content">
-    <h3 style="margin-bottom:16px;">➕ 手动添加商品</h3>
-    <input type="text" id="newGoodsCode" placeholder="商品编码（如：6941899614135）" style="width:100%; margin-bottom:12px;">
-    <input type="text" id="newGoodsName" placeholder="商品名称" style="width:100%; margin-bottom:12px;">
-    <button class="btn" onclick="addGoods()">确认添加</button>
-    <button class="btn btn-outline" onclick="closeAddGoodsModal()">取消</button>
-  </div>
 </div>
 
 <script>
@@ -325,262 +233,95 @@ const API = "https://api.aimonkey.cn/nms";
 const TOKEN = "nanmansheadmin";
 const ADMIN_PWD = "nms123";
 
-// localStorage 键名
-const STORAGE_GOODS = "goodsData";
-
 let currentSearchNo = "";
 let allOrders = [];
 
-// ========== 辅助函数 ==========
-function showMessage(msg, isError = false) {
-  const previewDiv = document.getElementById("goodsPreview");
-  previewDiv.innerHTML = `<div class="${isError ? 'error-msg' : 'success-msg'}">${msg}</div>`;
-  setTimeout(() => {
-    if (previewDiv.innerHTML === `<div class="${isError ? 'error-msg' : 'success-msg'}">${msg}</div>`) {
-      previewDiv.innerHTML = "";
-    }
-  }, 3000);
-}
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// 安全解码 base64 中的中文
-function safeBase64Decode(base64Str) {
-  try {
-    // 方法1: 使用 atob + decodeURIComponent
-    const binary = atob(base64Str);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
-    }
-    return new TextDecoder('utf-8').decode(bytes);
-  } catch(e) {
-    try {
-      // 方法2: 传统方式
-      return decodeURIComponent(escape(atob(base64Str)));
-    } catch(e2) {
-      console.error("解码失败:", e2);
-      return base64Str;
-    }
-  }
-}
-
-// ========== 登录 ==========
+// 登录验证
 function login() {
   const p = document.getElementById("pwd").value.trim();
   if (p === ADMIN_PWD) {
     document.getElementById("login").style.display = "none";
     document.getElementById("admin").style.display = "block";
     loadAllOrders();
-    loadGoodsDisplay();
   } else {
     alert("密码错误");
   }
 }
 
-// ========== 订单管理（修复版） ==========
-
-// 加载所有订单
+// 加载所有订单（云端）
 async function loadAllOrders() {
-  const orderListDiv = document.getElementById("orderList");
-  orderListDiv.innerHTML = '<div class="loading-spinner">🔄 正在加载订单...</div>';
-  
   try {
-    console.log("开始加载订单...");
-    const res = await fetch(`${API}/list`, { 
-      headers: { 
-        token: TOKEN,
-        'Content-Type': 'application/json'
-      } 
-    });
-    
-    console.log("API响应状态:", res.status);
-    
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
-    
+    const res = await fetch(`${API}/list`, { headers: { token: TOKEN } });
     const j = await res.json();
-    console.log("API返回数据:", j);
-    
-    if (j.code !== 0) {
-      throw new Error(j.msg || "加载失败");
-    }
-    
-    // 处理订单列表
-    const rawList = j.list || [];
-    console.log("原始订单数量:", rawList.length);
-    
-    if (rawList.length === 0) {
-      allOrders = [];
-      renderOrderList([]);
-      document.getElementById("orderCountBadge").innerText = `📊 订单数: 0`;
-      orderListDiv.innerHTML = '<div class="empty-orders">📭 暂无订单</div>';
-      return;
-    }
-    
-    // 解码每个订单
-    const decodedOrders = [];
-    for (let i = 0; i < rawList.length; i++) {
-      try {
-        const item = rawList[i];
-        let orderData = item.data;
-        
-        // 如果 data 是 base64 字符串，解码
-        if (orderData && typeof orderData === 'string') {
-          try {
-            const decodedStr = safeBase64Decode(orderData);
-            const order = JSON.parse(decodedStr);
-            decodedOrders.push(order);
-            console.log(`订单 ${i + 1} 解码成功:`, order.orderNo);
-          } catch(e) {
-            console.error(`订单 ${i + 1} 解码失败:`, e);
-            // 尝试直接解析
-            try {
-              const order = JSON.parse(orderData);
-              decodedOrders.push(order);
-            } catch(e2) {
-              console.error(`订单 ${i + 1} 直接解析也失败`);
-            }
-          }
-        } else if (orderData && typeof orderData === 'object') {
-          // 如果已经是对象
-          decodedOrders.push(orderData);
-        }
-      } catch(e) {
-        console.error(`处理订单 ${i} 时出错:`, e);
-      }
-    }
-    
-    allOrders = decodedOrders;
-    console.log("成功加载订单数:", allOrders.length);
-    
-    // 按时间倒序排列（最新的在前）
-    allOrders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    
+    if (j.code !== 0) { alert(j.msg || "加载失败"); return; }
+    allOrders = (j.list || []).map(item => JSON.parse(atob(item.data)));
     renderOrderList(allOrders);
     document.getElementById("orderCountBadge").innerText = `📊 订单数: ${allOrders.length}`;
-    
-    if (allOrders.length === 0) {
-      orderListDiv.innerHTML = '<div class="empty-orders">📭 暂无订单</div>';
-    }
-    
-  } catch (error) {
-    console.error("加载订单失败:", error);
-    const orderListDiv = document.getElementById("orderList");
-    orderListDiv.innerHTML = `
-      <div class="empty-orders" style="color:#d81e06;">
-        ❌ 订单加载失败<br>
-        <span style="font-size:12px; color:#666;">错误信息: ${escapeHtml(error.message)}</span><br>
-        <button class="btn btn-blue" onclick="loadAllOrders()" style="margin-top:12px;">🔄 点击重试</button>
-      </div>
-    `;
-    showMessage(`加载失败: ${error.message}`, true);
+  } catch (e) {
+    alert("网络异常，加载订单失败");
   }
 }
 
-// 渲染订单列表
+// 渲染订单
 function renderOrderList(orders) {
   const container = document.getElementById("orderList");
-  
-  if (!orders || orders.length === 0) {
-    container.innerHTML = '<div class="empty-orders">📭 暂无订单</div>';
+  if (!orders.length) {
+    container.innerHTML = `<div class="empty-orders">📭 暂无订单</div>`;
     return;
   }
-  
-  container.innerHTML = orders.map(order => {
-    // 安全获取订单字段
-    const orderNo = escapeHtml(order.orderNo || '未知订单号');
-    const createTime = escapeHtml(order.createTime || order.time || '未知时间');
-    const name = escapeHtml(order.name || '未知');
-    const phone = escapeHtml(order.phone || '未知');
-    const address = escapeHtml(order.address || '未知');
-    const logistics = escapeHtml(order.logistics || '');
-    const goods = order.goods || [];
-    
-    return `
-      <div class="order-card">
-        <div class="order-header">
-          <span class="order-no">🧾 ${orderNo}</span>
-          <span>${createTime}</span>
-        </div>
-        <div class="info-grid">
-          <div>👤 ${name}</div>
-          <div>📞 ${phone}</div>
-          <div>📍 ${address}</div>
-        </div>
-        <div class="goods-detail">
-          ${goods.map(g => `<div>• ${escapeHtml(g.name)} ×${g.num}（${escapeHtml(g.code)}）</div>`).join('') || '<div>暂无商品信息</div>'}
-        </div>
-        <div class="logistics-area">
-          <input type="text" class="logistics-input" value="${logistics}" placeholder="物流单号" id="log_${order.orderNo}">
-          <button class="btn btn-blue" onclick="updateLogistics('${order.orderNo}')">保存物流</button>
-          <button class="btn btn-red" onclick="deleteOrder('${order.orderNo}')">删除订单</button>
-        </div>
+  container.innerHTML = orders.map(order => `
+    <div class="order-card">
+      <div class="order-header">
+        <span class="order-no">🧾 ${order.orderNo}</span>
+        <span>${order.createTime}</span>
       </div>
-    `;
-  }).join("");
+      <div class="info-grid">
+        <div>👤 ${order.name}</div>
+        <div>📞 ${order.phone}</div>
+        <div>📍 ${order.address}</div>
+      </div>
+      <div class="goods-detail">
+        ${order.goods.map(g => `<div>• ${g.name} ×${g.num}（${g.code}）</div>`).join('')}
+      </div>
+      <div class="logistics-area">
+        <input type="text" class="logistics-input" value="${order.logistics||''}" placeholder="物流单号" id="log_${order.orderNo}">
+        <button class="btn btn-blue" onclick="updateLogistics('${order.orderNo}')">保存</button>
+        <button class="btn btn-red" onclick="deleteOrder('${order.orderNo}')">删除</button>
+      </div>
+    </div>
+  `).join("");
 }
 
 // 更新物流
 async function updateLogistics(orderNo) {
   const logi = document.getElementById(`log_${orderNo}`).value.trim();
   if (!logi) return alert("请输入物流单号");
-  
   try {
-    const res = await fetch(`${API}/logistics`, {
+    await fetch(`${API}/logistics`, {
       method: "POST",
       headers: { "Content-Type": "application/json", token: TOKEN },
       body: JSON.stringify({ orderNo, logistics: logi })
     });
-    const result = await res.json();
-    if (result.code === 0) {
-      showMessage(`订单 ${orderNo} 物流已更新`);
-      loadAllOrders();
-    } else {
-      alert("更新失败：" + (result.msg || "未知错误"));
-    }
+    alert("物流已同步");
+    loadAllOrders();
   } catch (e) {
-    alert("同步失败：" + e.message);
+    alert("同步失败");
   }
 }
 
 // 删除订单
 async function deleteOrder(orderNo) {
-  if (!confirm(`确定删除订单 ${orderNo} 吗？此操作不可恢复`)) return;
-  
+  if (!confirm("确定删除该订单？")) return;
   try {
-    const res = await fetch(`${API}/delete?orderNo=${orderNo}`, { 
-      method: "GET",
-      headers: { token: TOKEN } 
-    });
-    const result = await res.json();
-    if (result.code === 0) {
-      showMessage(`订单 ${orderNo} 已删除`);
-      loadAllOrders();
-    } else {
-      alert("删除失败：" + (result.msg || "未知错误"));
-    }
-  } catch (e) {
-    alert("删除失败：" + e.message);
-  }
+    await fetch(`${API}/delete?orderNo=${orderNo}`, { headers: { token: TOKEN } });
+    loadAllOrders();
+  } catch (e) {}
 }
 
 // 搜索订单
 function searchByOrderNo() {
   const no = document.getElementById("searchOrderNo").value.trim();
-  if (!no) {
-    alert("请输入订单号");
-    return;
-  }
+  if (!no) return alert("请输入订单号");
   currentSearchNo = no;
   const list = allOrders.filter(o => o.orderNo === no);
   renderOrderList(list);
@@ -590,311 +331,74 @@ function searchByOrderNo() {
 function clearSearch() {
   currentSearchNo = "";
   document.getElementById("searchOrderNo").value = "";
-  document.getElementById("startDate").value = "";
-  document.getElementById("endDate").value = "";
   renderOrderList(allOrders);
 }
 
-// 按日期筛选
-function filterOrdersByDate() {
+// 加载订单（带日期筛选）
+function loadOrders() {
   const start = document.getElementById("startDate").value;
   const end = document.getElementById("endDate").value;
   let list = [...allOrders];
-  if (start) list = list.filter(o => (o.createTime || '').split(' ')[0] >= start);
-  if (end) list = list.filter(o => (o.createTime || '').split(' ')[0] <= end);
+  if (start) list = list.filter(o => o.createTime >= start);
+  if (end) list = list.filter(o => o.createTime <= end + " 23:59:59");
   renderOrderList(list);
 }
 
 // 导出订单
 function exportFilteredOrders() {
   let list = currentSearchNo ? allOrders.filter(o => o.orderNo === currentSearchNo) : allOrders;
-  const start = document.getElementById("startDate").value;
-  const end = document.getElementById("endDate").value;
-  if (start || end) {
-    list = allOrders.filter(o => {
-      const date = (o.createTime || '').split(' ')[0];
-      if (start && date < start) return false;
-      if (end && date > end) return false;
-      return true;
-    });
-  }
-  
-  if (list.length === 0) {
-    alert("无数据可导出");
-    return;
-  }
-  
-  const csvRows = ["订单号,下单时间,姓名,电话,地址,商品,数量,编码,物流"];
-  list.forEach(o => {
-    const goods = o.goods || [];
-    goods.forEach(g => {
-      csvRows.push(`"${o.orderNo}","${o.createTime}","${o.name}","${o.phone}","${o.address}","${g.name}",${g.num},"${g.code}","${o.logistics || ""}"`);
-    });
-    if (goods.length === 0) {
-      csvRows.push(`"${o.orderNo}","${o.createTime}","${o.name}","${o.phone}","${o.address}","无商品",0,"","${o.logistics || ""}"`);
-    }
-  });
-  
-  const csv = "\uFEFF" + csvRows.join("\n");
+  if (list.length === 0) return alert("无数据可导出");
+  const csv = "\uFEFF订单号,下单时间,姓名,电话,地址,商品,数量,编码,物流\n" +
+    list.map(o => o.goods.map(g => 
+      `${o.orderNo},${o.createTime},${o.name},${o.phone},${o.address},${g.name},${g.num},${g.code},${o.logistics||""}`
+    ).join("\n")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `南漫社订单_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.csv`;
+  a.download = "南漫社订单.csv";
   a.click();
   URL.revokeObjectURL(a.href);
-  alert(`导出成功，共 ${list.length} 个订单`);
 }
 
-// 批量上传物流
+// 批量物流
 async function batchUploadLogistics() {
   const file = document.getElementById("logisticsFile").files[0];
-  if (!file) {
-    alert("请选择文件");
-    return;
-  }
-  
+  if (!file) return alert("请选择文件");
   const reader = new FileReader();
-  reader.onload = async (e) => {
+  reader.onload = e => {
     const text = e.target.result;
     const lines = text.split(/\r?\n/).filter(i => i.trim());
     const map = {};
-    
     lines.forEach(line => {
       const [no, log] = line.split(",");
-      if (no && log) {
-        map[no.trim()] = log.trim();
-      }
+      if (no && log) map[no.trim()] = log.trim();
     });
-    
-    if (Object.keys(map).length === 0) {
-      alert("文件格式错误，请确保每行格式为：订单号,物流单号");
-      return;
-    }
-    
-    try {
-      const res = await fetch(`${API}/batch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", token: TOKEN },
-        body: JSON.stringify({ map })
-      });
-      const result = await res.json();
-      if (result.code === 0) {
-        showMessage(`批量更新完成，共更新 ${Object.keys(map).length} 个订单`);
-        loadAllOrders();
-      } else {
-        alert("批量更新失败：" + (result.msg || "未知错误"));
-      }
-    } catch(e) {
-      alert("批量更新失败：" + e.message);
-    }
+    fetch(`${API}/batch`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token: TOKEN },
+      body: JSON.stringify({ map })
+    }).then(() => {
+      alert("批量更新完成");
+      loadAllOrders();
+    });
   };
   reader.readAsText(file);
 }
 
-// 下载物流模板
+// 下载模板
 function downloadLogisticsTemplate() {
-  const csv = "NMS123456,SF1234567890\nNMS654321,YT7654321098";
+  const csv = "NMS123456,SF1234567890\nNMS65432,YT7654321098";
   const blob = new Blob([csv], { type: "text/plain;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "物流批量模板.txt";
   a.click();
-  URL.revokeObjectURL(a.href);
 }
 
-// ========== 商品管理 ==========
-
-function getGoods() {
-  let goods = localStorage.getItem(STORAGE_GOODS);
-  if (!goods) {
-    goods = [
-      { code: "6941899614135", name: "红岁驰春 迷你吧唧1对" },
-      { code: "6941899614234", name: "南漫社限定亚克力立牌" },
-      { code: "6941899614331", name: "星尘回忆 色纸套装" }
-    ];
-    localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
-    return goods;
-  }
-  try {
-    return JSON.parse(goods);
-  } catch(e) {
-    return [];
-  }
-}
-
-function saveGoods(goods) {
-  localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
-  syncGoodsToCloud(goods);
-  loadGoodsDisplay();
-}
-
-async function syncGoodsToCloud(goods) {
-  try {
-    const goodsStr = JSON.stringify(goods);
-    const encoded = btoa(unescape(encodeURIComponent(goodsStr)));
-    await fetch(`${API}/goods/sync`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", token: TOKEN },
-      body: JSON.stringify({ goods: encoded })
-    });
-  } catch(e) {
-    console.log("云端同步失败");
-  }
-}
-
-function loadGoodsDisplay() {
-  const goods = getGoods();
-  const previewDiv = document.getElementById("goodsPreview");
-  previewDiv.innerHTML = `<div class="success-msg">✅ 当前共有 ${goods.length} 个商品在售</div>`;
-  setTimeout(() => {
-    if (previewDiv.innerHTML.includes("当前共有")) {
-      previewDiv.innerHTML = "";
-    }
-  }, 3000);
-}
-
-function uploadGoods() {
-  const file = document.getElementById("fileInput").files[0];
-  if (!file) {
-    alert("请选择CSV或TXT文件");
-    return;
-  }
-  
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const content = e.target.result;
-    const lines = content.split(/\r?\n/).filter(line => line.trim());
-    const newGoods = [];
-    
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      let parts = line.split(",");
-      if (parts.length < 2) parts = line.split("，");
-      if (parts.length >= 2) {
-        let code = parts[0].trim();
-        let name = parts[1].trim();
-        if (/[\u4e00-\u9fa5]/.test(code) && !/[\u4e00-\u9fa5]/.test(name)) {
-          [code, name] = [name, code];
-        }
-        if (code && name) {
-          newGoods.push({ code, name });
-        }
-      }
-    }
-    
-    if (newGoods.length === 0) {
-      alert("文件格式错误，请确保每行格式为：商品编码,商品名称");
-      return;
-    }
-    
-    saveGoods(newGoods);
-    showMessage(`✅ 已成功上传 ${newGoods.length} 个商品`);
-  };
-  reader.readAsText(file, "UTF-8");
-}
-
-function exportSampleTemplate() {
-  const sample = "6941899614135,红岁驰春 迷你吧唧1对\n6941899614234,南漫社限定亚克力立牌\n6941899614331,星尘回忆 色纸套装";
-  const blob = new Blob(["\uFEFF" + sample], { type: "text/csv;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "商品模板.csv";
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-function viewCurrentGoods() {
-  const goods = getGoods();
-  const container = document.getElementById("goodsListContainer");
-  if (goods.length === 0) {
-    container.innerHTML = "<div style='color:#999; padding:20px; text-align:center;'>暂无商品，请先上传商品</div>";
-  } else {
-    container.innerHTML = `
-      <table class="goods-table">
-        <thead><tr><th>商品编码</th><th>商品名称</th><th>操作</th></tr></thead>
-        <tbody>
-          ${goods.map((g, idx) => `
-            <tr>
-              <td>${escapeHtml(g.code)}</td>
-              <td>${escapeHtml(g.name)}</td>
-              <td><button class="delete-goods-btn" onclick="deleteGoods(${idx})">删除</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    `;
-  }
-  document.getElementById("goodsModal").style.display = "flex";
-}
-
-function closeGoodsModal() {
-  document.getElementById("goodsModal").style.display = "none";
-}
-
-function showAddGoodsModal() {
-  document.getElementById("newGoodsCode").value = "";
-  document.getElementById("newGoodsName").value = "";
-  document.getElementById("addGoodsModal").style.display = "flex";
-}
-
-function closeAddGoodsModal() {
-  document.getElementById("addGoodsModal").style.display = "none";
-}
-
-function addGoods() {
-  const code = document.getElementById("newGoodsCode").value.trim();
-  const name = document.getElementById("newGoodsName").value.trim();
-  if (!code || !name) {
-    alert("请填写完整的商品编码和名称");
-    return;
-  }
-  const goods = getGoods();
-  if (goods.some(g => g.code === code)) {
-    alert("商品编码已存在");
-    return;
-  }
-  goods.push({ code, name });
-  saveGoods(goods);
-  alert("商品添加成功");
-  closeAddGoodsModal();
-  if (document.getElementById("goodsModal").style.display === "flex") {
-    viewCurrentGoods();
-  }
-}
-
-function deleteGoods(index) {
-  if (!confirm("确定删除该商品吗？")) return;
-  const goods = getGoods();
-  goods.splice(index, 1);
-  saveGoods(goods);
-  viewCurrentGoods();
-  showMessage("商品已删除");
-}
-
-// 初始化
-async function init() {
-  await syncGoodsFromCloud();
-}
-
-async function syncGoodsFromCloud() {
-  try {
-    const res = await fetch(`${API}/goods/get`, { headers: { token: TOKEN } });
-    if (res.ok) {
-      const j = await res.json();
-      if (j.code === 0 && j.goods) {
-        const decoded = safeBase64Decode(j.goods);
-        const cloudGoods = JSON.parse(decoded);
-        if (cloudGoods && cloudGoods.length > 0) {
-          localStorage.setItem(STORAGE_GOODS, JSON.stringify(cloudGoods));
-        }
-      }
-    }
-  } catch(e) {
-    console.log("云端同步失败");
-  }
-}
-
-init();
+// 商品功能（保留本地）
+function uploadGoods() {}
+function exportSampleTemplate() {}
+function viewCurrentGoods() {}
 </script>
 </body>
 </html>
