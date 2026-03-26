@@ -191,186 +191,196 @@
   <button class="query-btn" onclick="queryOrder()">📬 查询订单 / 物流单号</button>
   <div id="queryResult" style="margin-top:12px; font-size:13px;"></div>
 </div>
+
 <script>
-  const STORAGE_GOODS = "goodsData";
-  const STORAGE_ORDERS = "nmsOrders";
-  const STORAGE_USER = "userInfo";
-  let cart = [];
+// 安全云端配置
+const API = "https://api.aimonkey.cn/nms";
+const TOKEN = "nanmansheadmin";
 
-  function loadGoods() {
-    let goods = JSON.parse(localStorage.getItem(STORAGE_GOODS) || "[]");
-    if (goods.length === 0) {
-      goods = [
-        { code: "6941899614135", name: "红岁驰春 迷你吧唧1对" },
-        { code: "6941899614234", name: "南漫社限定亚克力立牌" },
-        { code: "6941899614331", name: "星尘回忆 色纸套装" }
-      ];
-      localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
-    }
-    const container = document.getElementById("goodsList");
-    container.innerHTML = goods.map(item => `
-      <div class="goods-item">
-        <div class="goods-name">${escapeHtml(item.name)}</div>
-        <button class="add-btn" onclick="addCart('${escapeHtml(item.name)}','${item.code}')">➕ 加购</button>
-      </div>
-    `).join("");
+const STORAGE_GOODS = "goodsData";
+const STORAGE_ORDERS = "nmsOrders";
+const STORAGE_USER = "userInfo";
+let cart = [];
+
+function loadGoods() {
+  let goods = JSON.parse(localStorage.getItem(STORAGE_GOODS) || "[]");
+  if (goods.length === 0) {
+    goods = [
+      { code: "6941899614135", name: "红岁驰春 迷你吧唧1对" },
+      { code: "6941899614234", name: "南漫社限定亚克力立牌" },
+      { code: "6941899614331", name: "星尘回忆 色纸套装" }
+    ];
+    localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
   }
+  const container = document.getElementById("goodsList");
+  container.innerHTML = goods.map(item => `
+    <div class="goods-item">
+      <div class="goods-name">${escapeHtml(item.name)}</div>
+      <button class="add-btn" onclick="addCart('${escapeHtml(item.name)}','${item.code}')">➕ 加购</button>
+    </div>
+  `).join("");
+}
 
-  function addCart(name, code) {
-    const exist = cart.find(i => i.name === name);
-    if (exist) exist.num++;
-    else cart.push({ name, code, num: 1 });
-    renderCart();
+function addCart(name, code) {
+  const exist = cart.find(i => i.name === name);
+  if (exist) exist.num++;
+  else cart.push({ name, code, num: 1 });
+  renderCart();
+}
+
+function renderCart() {
+  const cartDiv = document.getElementById("cartList");
+  if (cart.length === 0) {
+    cartDiv.innerHTML = "<div style='color:#b97f10; padding:8px 0;'>✨ 暂未选择商品</div>";
+    return;
   }
+  cartDiv.innerHTML = cart.map(item => `
+    <div class="cart-item">
+      <span>${escapeHtml(item.name)}</span>
+      <span>× <span class="num">${item.num}</span></span>
+    </div>
+  `).join("");
+}
 
-  function renderCart() {
-    const cartDiv = document.getElementById("cartList");
-    if (cart.length === 0) {
-      cartDiv.innerHTML = "<div style='color:#b97f10; padding:8px 0;'>✨ 暂未选择商品</div>";
-      return;
-    }
-    cartDiv.innerHTML = cart.map(item => `
-      <div class="cart-item">
-        <span>${escapeHtml(item.name)}</span>
-        <span>× <span class="num">${item.num}</span></span>
-      </div>
-    `).join("");
-  }
+function parseAddress() {
+  const raw = document.getElementById("addressRaw").value.trim();
+  if (!raw) return alert("请粘贴内容");
+  const phone = raw.match(/1[3-9]\d{9}/)?.[0] || "";
+  const name = raw.match(/[\u4e00-\u9fa5]{2,6}/)?.[0] || "";
+  const address = raw.replace(name, "").replace(phone, "").trim();
+  document.getElementById("name").value = name;
+  document.getElementById("phone").value = phone;
+  document.getElementById("address").value = address;
+  alert("解析完成，请核对信息");
+}
 
-  function parseAddress() {
-    const raw = document.getElementById("addressRaw").value.trim();
-    if (!raw) return alert("请粘贴内容");
-    const phone = raw.match(/1[3-9]\d{9}/)?.[0] || "";
-    const name = raw.match(/[\u4e00-\u9fa5]{2,6}/)?.[0] || "";
-    const address = raw.replace(name, "").replace(phone, "").trim();
-    document.getElementById("name").value = name;
-    document.getElementById("phone").value = phone;
-    document.getElementById("address").value = address;
-    alert("解析完成，请核对信息");
-  }
+function createOrderNo() {
+  return "NMS" + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase();
+}
 
-  function createOrderNo() {
-    return "NMS" + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase();
-  }
+function getOrders() {
+  return JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
+}
 
-  function getOrders() {
-    return JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
-  }
+function saveOrders(orders) {
+  localStorage.setItem(STORAGE_ORDERS, JSON.stringify(orders));
+}
 
-  function saveOrders(orders) {
-    localStorage.setItem(STORAGE_ORDERS, JSON.stringify(orders));
-    window.dispatchEvent(new Event("orderUpdate"));
-  }
+// 加密提交到云端
+async function submitOrder() {
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const address = document.getElementById("address").value.trim();
+  if (!name || !phone || !address) return alert("请完善收货信息");
+  if (!/^1[3-9]\d{9}$/.test(phone)) return alert("手机号格式不正确");
+  if (cart.length === 0) return alert("请选择商品");
 
-  function submitOrder() {
-    const name = document.getElementById("name").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const address = document.getElementById("address").value.trim();
-    if (!name || !phone || !address) return alert("请完善收货信息");
-    if (!/^1[3-9]\d{9}$/.test(phone)) return alert("手机号格式不正确");
-    if (cart.length === 0) return alert("请选择商品");
-
-    localStorage.setItem(STORAGE_USER, JSON.stringify({ name, phone, address }));
-    const orderNo = createOrderNo();
-    const now = new Date();
-    const createTime = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    
-    const newOrder = {
-      orderNo, name, phone, address,
-      goods: [...cart], createTime, logistics: "", timestamp: now.getTime()
-    };
-
-    const orders = getOrders();
-    orders.unshift(newOrder);
-    saveOrders(orders);
-
-    document.getElementById("orderResult").style.display = "block";
-    document.getElementById("orderNo").innerText = orderNo;
-    document.getElementById("createTime").innerText = createTime;
-    document.getElementById("orderGoods").innerText = cart.map(i => `${i.name}×${i.num}`).join("，");
-    cart = []; renderCart(); showHistory();
-    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 100);
-    alert(`订单提交成功！\n订单号：${orderNo}`);
-  }
-
-  function deleteOrder(orderNo) {
-    if (!confirm(`确定要删除订单 ${orderNo} 吗？删除后不可恢复，商家后台也将同步删除。`)) return;
-    let orders = getOrders();
-    const newOrders = orders.filter(o => o.orderNo !== orderNo);
-    saveOrders(newOrders);
-    showHistory();
-    const queryInput = document.getElementById("queryOrderNo").value;
-    if (queryInput === orderNo) {
-      document.getElementById("queryResult").innerHTML = "<span style='color:#ff4d4f;'>该订单已被删除</span>";
-    }
-    alert(`订单 ${orderNo} 已删除`);
-  }
-
-  function showHistory() {
-    const orders = getOrders();
-    const historyDiv = document.getElementById("historyList");
-    if (orders.length === 0) {
-      historyDiv.innerHTML = "<div style='color:#aaa; padding:12px 0;'>暂无订单记录</div>";
-      return;
-    }
-    historyDiv.innerHTML = orders.slice(0, 10).map(o => `
-      <div class="history-item">
-        <div class="flex-between">
-          <strong>${o.orderNo}</strong>
-          <span style="color:#888; font-size:12px;">${o.createTime}</span>
-        </div>
-        <div style="margin-top:4px;">🎁 ${(o.goods || []).map(g => `${g.name}×${g.num}`).join("、")}</div>
-        <div class="order-logistics">🚚 物流：${o.logistics || "待发货"}</div>
-        <button class="delete-order-btn" onclick="deleteOrder('${o.orderNo}')">🗑️ 删除订单</button>
-      </div>
-    `).join("");
-  }
-
-  function queryOrder() {
-    const orderNo = document.getElementById("queryOrderNo").value.trim();
-    const resultDiv = document.getElementById("queryResult");
-    if (!orderNo) {
-      resultDiv.innerHTML = "<span style='color:#e67e22;'>请输入订单号</span>";
-      return;
-    }
-    const order = getOrders().find(o => o.orderNo === orderNo);
-    if (!order) {
-      resultDiv.innerHTML = "<span style='color:#d81e06;'>❌ 未找到订单，请核对订单号</span>";
-      return;
-    }
-    resultDiv.innerHTML = `
-      <div style="background:#f8f9fc; border-radius:16px; padding:12px;">
-        <div><strong>✅ 订单号：</strong>${order.orderNo}</div>
-        <div><strong>📅 下单时间：</strong>${order.createTime}</div>
-        <div><strong>🎁 商品：</strong>${order.goods.map(g => `${g.name}×${g.num}`).join("、")}</div>
-        <div><strong>📦 物流信息：</strong>${order.logistics || "待发货"}</div>
-        <div><strong>👤 收件人：</strong>${order.name} ${order.phone}</div>
-        <div><strong>📍 地址：</strong>${order.address}</div>
-      </div>
-    `;
-  }
-
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]||m));
-  }
-
-  function loadUserCache() {
-    const user = JSON.parse(localStorage.getItem(STORAGE_USER) || "{}");
-    if (user.name) document.getElementById("name").value = user.name;
-    if (user.phone) document.getElementById("phone").value = user.phone;
-    if (user.address) document.getElementById("address").value = user.address;
-  }
-
-  window.addEventListener("storage", (e) => {
-    if (e.key === STORAGE_ORDERS || e.key === STORAGE_GOODS) {
-      showHistory(); loadGoods();
-    }
-  });
-
-  window.onload = () => {
-    loadGoods(); renderCart(); showHistory(); loadUserCache();
+  localStorage.setItem(STORAGE_USER, JSON.stringify({ name, phone, address }));
+  const orderNo = createOrderNo();
+  const now = new Date();
+  const createTime = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  
+  const newOrder = {
+    orderNo, name, phone, address,
+    goods: [...cart], createTime, logistics: "", timestamp: now.getTime()
   };
+
+  // 本地保存
+  const orders = getOrders();
+  orders.unshift(newOrder);
+  saveOrders(orders);
+
+  // 加密上传到商家后台
+  try {
+    await fetch(API + "/submit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token: TOKEN },
+      body: JSON.stringify({ data: btoa(JSON.stringify(newOrder)) })
+    });
+  } catch (e) {}
+
+  document.getElementById("orderResult").style.display = "block";
+  document.getElementById("orderNo").innerText = orderNo;
+  document.getElementById("createTime").innerText = createTime;
+  document.getElementById("orderGoods").innerText = cart.map(i => `${i.name}×${i.num}`).join("，");
+  cart = []; renderCart(); showHistory();
+  setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 100);
+  alert(`订单提交成功！\n订单号：${orderNo}`);
+}
+
+function deleteOrder(orderNo) {
+  if (!confirm(`确定要删除订单 ${orderNo} 吗？`)) return;
+  let orders = getOrders();
+  const newOrders = orders.filter(o => o.orderNo !== orderNo);
+  saveOrders(newOrders);
+  showHistory();
+  alert(`订单 ${orderNo} 已删除`);
+}
+
+function showHistory() {
+  const orders = getOrders();
+  const historyDiv = document.getElementById("historyList");
+  if (orders.length === 0) {
+    historyDiv.innerHTML = "<div style='color:#aaa; padding:12px 0;'>暂无订单记录</div>";
+    return;
+  }
+  historyDiv.innerHTML = orders.slice(0, 10).map(o => `
+    <div class="history-item">
+      <div class="flex-between">
+        <strong>${o.orderNo}</strong>
+        <span style="color:#888; font-size:12px;">${o.createTime}</span>
+      </div>
+      <div style="margin-top:4px;">🎁 ${(o.goods || []).map(g => `${g.name}×${g.num}`).join("、")}</div>
+      <div class="order-logistics">🚚 物流：${o.logistics || "待发货"}</div>
+      <button class="delete-order-btn" onclick="deleteOrder('${o.orderNo}')">🗑️ 删除</button>
+    </div>
+  `).join("");
+}
+
+async function queryOrder() {
+  const orderNo = document.getElementById("queryOrderNo").value.trim();
+  const resultDiv = document.getElementById("queryResult");
+  if (!orderNo) {
+    resultDiv.innerHTML = "<span style='color:#e67e22;'>请输入订单号</span>";
+    return;
+  }
+  let order = getOrders().find(o => o.orderNo === orderNo);
+  if (!order) {
+    try {
+      const res = await fetch(`${API}/query?orderNo=${orderNo}`, { headers: { token: TOKEN } });
+      const j = await res.json();
+      if (j.code === 0 && j.data) order = JSON.parse(atob(j.data));
+    } catch (e) {}
+  }
+  if (!order) {
+    resultDiv.innerHTML = "<span style='color:#d81e06;'>❌ 未找到订单，请核对订单号</span>";
+    return;
+  }
+  resultDiv.innerHTML = `
+    <div style="background:#f8f9fc; border-radius:16px; padding:12px;">
+      <div><strong>✅ 订单号：</strong>${order.orderNo}</div>
+      <div><strong>📅 下单时间：</strong>${order.createTime}</div>
+      <div><strong>🎁 商品：</strong>${order.goods.map(g => `${g.name}×${g.num}`).join("、")}</div>
+      <div><strong>📦 物流：</strong>${order.logistics || "待发货"}</div>
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]||m));
+}
+
+function loadUserCache() {
+  const user = JSON.parse(localStorage.getItem(STORAGE_USER) || "{}");
+  if (user.name) document.getElementById("name").value = user.name;
+  if (user.phone) document.getElementById("phone").value = user.phone;
+  if (user.address) document.getElementById("address").value = user.address;
+}
+
+window.onload = () => {
+  loadGoods(); renderCart(); showHistory(); loadUserCache();
+};
 </script>
 </body>
 </html>
