@@ -232,6 +232,15 @@
     margin-top: 12px;
     font-size: 13px;
   }
+  .loading-spinner {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+  }
+  .refresh-btn {
+    background: #1677ff;
+    margin-left: 10px;
+  }
 </style>
 </head>
 <body>
@@ -257,7 +266,10 @@
 </div>
 
 <div class="admin-card">
-  <div class="card-title">📋 订单管理中心（所有达人订单）</div>
+  <div class="card-title">
+    📋 订单管理中心（所有达人订单）
+    <button class="btn refresh-btn" onclick="loadAllOrders()" style="font-size:12px; padding:4px 12px;">🔄 刷新订单</button>
+  </div>
   <div class="search-box">
     <div class="flex-row">
       <input type="text" id="searchOrderNo" class="search-input" placeholder="🔍 按订单号精确查询">
@@ -281,7 +293,9 @@
     </div>
     <div style="font-size:12px;color:#666;margin-top:6px;">格式：订单号,物流单号（每行一条）</div>
   </div>
-  <div id="orderList" class="order-list-container"></div>
+  <div id="orderList" class="order-list-container">
+    <div class="loading-spinner">📦 加载订单中...</div>
+  </div>
 </div>
 </div>
 
@@ -316,7 +330,48 @@ const STORAGE_GOODS = "goodsData";
 
 let currentSearchNo = "";
 let allOrders = [];
-let currentFilteredOrders = [];
+
+// ========== 辅助函数 ==========
+function showMessage(msg, isError = false) {
+  const previewDiv = document.getElementById("goodsPreview");
+  previewDiv.innerHTML = `<div class="${isError ? 'error-msg' : 'success-msg'}">${msg}</div>`;
+  setTimeout(() => {
+    if (previewDiv.innerHTML === `<div class="${isError ? 'error-msg' : 'success-msg'}">${msg}</div>`) {
+      previewDiv.innerHTML = "";
+    }
+  }, 3000);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// 安全解码 base64 中的中文
+function safeBase64Decode(base64Str) {
+  try {
+    // 方法1: 使用 atob + decodeURIComponent
+    const binary = atob(base64Str);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder('utf-8').decode(bytes);
+  } catch(e) {
+    try {
+      // 方法2: 传统方式
+      return decodeURIComponent(escape(atob(base64Str)));
+    } catch(e2) {
+      console.error("解码失败:", e2);
+      return base64Str;
+    }
+  }
+}
 
 // ========== 登录 ==========
 function login() {
@@ -331,9 +386,324 @@ function login() {
   }
 }
 
+// ========== 订单管理（修复版） ==========
+
+// 加载所有订单
+async function loadAllOrders() {
+  const orderListDiv = document.getElementById("orderList");
+  orderListDiv.innerHTML = '<div class="loading-spinner">🔄 正在加载订单...</div>';
+  
+  try {
+    console.log("开始加载订单...");
+    const res = await fetch(`${API}/list`, { 
+      headers: { 
+        token: TOKEN,
+        'Content-Type': 'application/json'
+      } 
+    });
+    
+    console.log("API响应状态:", res.status);
+    
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    
+    const j = await res.json();
+    console.log("API返回数据:", j);
+    
+    if (j.code !== 0) {
+      throw new Error(j.msg || "加载失败");
+    }
+    
+    // 处理订单列表
+    const rawList = j.list || [];
+    console.log("原始订单数量:", rawList.length);
+    
+    if (rawList.length === 0) {
+      allOrders = [];
+      renderOrderList([]);
+      document.getElementById("orderCountBadge").innerText = `📊 订单数: 0`;
+      orderListDiv.innerHTML = '<div class="empty-orders">📭 暂无订单</div>';
+      return;
+    }
+    
+    // 解码每个订单
+    const decodedOrders = [];
+    for (let i = 0; i < rawList.length; i++) {
+      try {
+        const item = rawList[i];
+        let orderData = item.data;
+        
+        // 如果 data 是 base64 字符串，解码
+        if (orderData && typeof orderData === 'string') {
+          try {
+            const decodedStr = safeBase64Decode(orderData);
+            const order = JSON.parse(decodedStr);
+            decodedOrders.push(order);
+            console.log(`订单 ${i + 1} 解码成功:`, order.orderNo);
+          } catch(e) {
+            console.error(`订单 ${i + 1} 解码失败:`, e);
+            // 尝试直接解析
+            try {
+              const order = JSON.parse(orderData);
+              decodedOrders.push(order);
+            } catch(e2) {
+              console.error(`订单 ${i + 1} 直接解析也失败`);
+            }
+          }
+        } else if (orderData && typeof orderData === 'object') {
+          // 如果已经是对象
+          decodedOrders.push(orderData);
+        }
+      } catch(e) {
+        console.error(`处理订单 ${i} 时出错:`, e);
+      }
+    }
+    
+    allOrders = decodedOrders;
+    console.log("成功加载订单数:", allOrders.length);
+    
+    // 按时间倒序排列（最新的在前）
+    allOrders.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    
+    renderOrderList(allOrders);
+    document.getElementById("orderCountBadge").innerText = `📊 订单数: ${allOrders.length}`;
+    
+    if (allOrders.length === 0) {
+      orderListDiv.innerHTML = '<div class="empty-orders">📭 暂无订单</div>';
+    }
+    
+  } catch (error) {
+    console.error("加载订单失败:", error);
+    const orderListDiv = document.getElementById("orderList");
+    orderListDiv.innerHTML = `
+      <div class="empty-orders" style="color:#d81e06;">
+        ❌ 订单加载失败<br>
+        <span style="font-size:12px; color:#666;">错误信息: ${escapeHtml(error.message)}</span><br>
+        <button class="btn btn-blue" onclick="loadAllOrders()" style="margin-top:12px;">🔄 点击重试</button>
+      </div>
+    `;
+    showMessage(`加载失败: ${error.message}`, true);
+  }
+}
+
+// 渲染订单列表
+function renderOrderList(orders) {
+  const container = document.getElementById("orderList");
+  
+  if (!orders || orders.length === 0) {
+    container.innerHTML = '<div class="empty-orders">📭 暂无订单</div>';
+    return;
+  }
+  
+  container.innerHTML = orders.map(order => {
+    // 安全获取订单字段
+    const orderNo = escapeHtml(order.orderNo || '未知订单号');
+    const createTime = escapeHtml(order.createTime || order.time || '未知时间');
+    const name = escapeHtml(order.name || '未知');
+    const phone = escapeHtml(order.phone || '未知');
+    const address = escapeHtml(order.address || '未知');
+    const logistics = escapeHtml(order.logistics || '');
+    const goods = order.goods || [];
+    
+    return `
+      <div class="order-card">
+        <div class="order-header">
+          <span class="order-no">🧾 ${orderNo}</span>
+          <span>${createTime}</span>
+        </div>
+        <div class="info-grid">
+          <div>👤 ${name}</div>
+          <div>📞 ${phone}</div>
+          <div>📍 ${address}</div>
+        </div>
+        <div class="goods-detail">
+          ${goods.map(g => `<div>• ${escapeHtml(g.name)} ×${g.num}（${escapeHtml(g.code)}）</div>`).join('') || '<div>暂无商品信息</div>'}
+        </div>
+        <div class="logistics-area">
+          <input type="text" class="logistics-input" value="${logistics}" placeholder="物流单号" id="log_${order.orderNo}">
+          <button class="btn btn-blue" onclick="updateLogistics('${order.orderNo}')">保存物流</button>
+          <button class="btn btn-red" onclick="deleteOrder('${order.orderNo}')">删除订单</button>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+// 更新物流
+async function updateLogistics(orderNo) {
+  const logi = document.getElementById(`log_${orderNo}`).value.trim();
+  if (!logi) return alert("请输入物流单号");
+  
+  try {
+    const res = await fetch(`${API}/logistics`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token: TOKEN },
+      body: JSON.stringify({ orderNo, logistics: logi })
+    });
+    const result = await res.json();
+    if (result.code === 0) {
+      showMessage(`订单 ${orderNo} 物流已更新`);
+      loadAllOrders();
+    } else {
+      alert("更新失败：" + (result.msg || "未知错误"));
+    }
+  } catch (e) {
+    alert("同步失败：" + e.message);
+  }
+}
+
+// 删除订单
+async function deleteOrder(orderNo) {
+  if (!confirm(`确定删除订单 ${orderNo} 吗？此操作不可恢复`)) return;
+  
+  try {
+    const res = await fetch(`${API}/delete?orderNo=${orderNo}`, { 
+      method: "GET",
+      headers: { token: TOKEN } 
+    });
+    const result = await res.json();
+    if (result.code === 0) {
+      showMessage(`订单 ${orderNo} 已删除`);
+      loadAllOrders();
+    } else {
+      alert("删除失败：" + (result.msg || "未知错误"));
+    }
+  } catch (e) {
+    alert("删除失败：" + e.message);
+  }
+}
+
+// 搜索订单
+function searchByOrderNo() {
+  const no = document.getElementById("searchOrderNo").value.trim();
+  if (!no) {
+    alert("请输入订单号");
+    return;
+  }
+  currentSearchNo = no;
+  const list = allOrders.filter(o => o.orderNo === no);
+  renderOrderList(list);
+}
+
+// 清除筛选
+function clearSearch() {
+  currentSearchNo = "";
+  document.getElementById("searchOrderNo").value = "";
+  document.getElementById("startDate").value = "";
+  document.getElementById("endDate").value = "";
+  renderOrderList(allOrders);
+}
+
+// 按日期筛选
+function filterOrdersByDate() {
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+  let list = [...allOrders];
+  if (start) list = list.filter(o => (o.createTime || '').split(' ')[0] >= start);
+  if (end) list = list.filter(o => (o.createTime || '').split(' ')[0] <= end);
+  renderOrderList(list);
+}
+
+// 导出订单
+function exportFilteredOrders() {
+  let list = currentSearchNo ? allOrders.filter(o => o.orderNo === currentSearchNo) : allOrders;
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+  if (start || end) {
+    list = allOrders.filter(o => {
+      const date = (o.createTime || '').split(' ')[0];
+      if (start && date < start) return false;
+      if (end && date > end) return false;
+      return true;
+    });
+  }
+  
+  if (list.length === 0) {
+    alert("无数据可导出");
+    return;
+  }
+  
+  const csvRows = ["订单号,下单时间,姓名,电话,地址,商品,数量,编码,物流"];
+  list.forEach(o => {
+    const goods = o.goods || [];
+    goods.forEach(g => {
+      csvRows.push(`"${o.orderNo}","${o.createTime}","${o.name}","${o.phone}","${o.address}","${g.name}",${g.num},"${g.code}","${o.logistics || ""}"`);
+    });
+    if (goods.length === 0) {
+      csvRows.push(`"${o.orderNo}","${o.createTime}","${o.name}","${o.phone}","${o.address}","无商品",0,"","${o.logistics || ""}"`);
+    }
+  });
+  
+  const csv = "\uFEFF" + csvRows.join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `南漫社订单_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  alert(`导出成功，共 ${list.length} 个订单`);
+}
+
+// 批量上传物流
+async function batchUploadLogistics() {
+  const file = document.getElementById("logisticsFile").files[0];
+  if (!file) {
+    alert("请选择文件");
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const text = e.target.result;
+    const lines = text.split(/\r?\n/).filter(i => i.trim());
+    const map = {};
+    
+    lines.forEach(line => {
+      const [no, log] = line.split(",");
+      if (no && log) {
+        map[no.trim()] = log.trim();
+      }
+    });
+    
+    if (Object.keys(map).length === 0) {
+      alert("文件格式错误，请确保每行格式为：订单号,物流单号");
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${API}/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token: TOKEN },
+        body: JSON.stringify({ map })
+      });
+      const result = await res.json();
+      if (result.code === 0) {
+        showMessage(`批量更新完成，共更新 ${Object.keys(map).length} 个订单`);
+        loadAllOrders();
+      } else {
+        alert("批量更新失败：" + (result.msg || "未知错误"));
+      }
+    } catch(e) {
+      alert("批量更新失败：" + e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// 下载物流模板
+function downloadLogisticsTemplate() {
+  const csv = "NMS123456,SF1234567890\nNMS654321,YT7654321098";
+  const blob = new Blob([csv], { type: "text/plain;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "物流批量模板.txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
 // ========== 商品管理 ==========
 
-// 获取商品列表
 function getGoods() {
   let goods = localStorage.getItem(STORAGE_GOODS);
   if (!goods) {
@@ -345,35 +715,37 @@ function getGoods() {
     localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
     return goods;
   }
-  return JSON.parse(goods);
+  try {
+    return JSON.parse(goods);
+  } catch(e) {
+    return [];
+  }
 }
 
-// 保存商品列表（同时同步到云端）
 function saveGoods(goods) {
   localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
   syncGoodsToCloud(goods);
   loadGoodsDisplay();
 }
 
-// 同步商品到云端API
 async function syncGoodsToCloud(goods) {
   try {
+    const goodsStr = JSON.stringify(goods);
+    const encoded = btoa(unescape(encodeURIComponent(goodsStr)));
     await fetch(`${API}/goods/sync`, {
       method: "POST",
       headers: { "Content-Type": "application/json", token: TOKEN },
-      body: JSON.stringify({ goods: btoa(JSON.stringify(goods)) })
+      body: JSON.stringify({ goods: encoded })
     });
-    console.log("商品已同步到云端");
   } catch(e) {
-    console.log("云端同步失败，已保存到本地");
+    console.log("云端同步失败");
   }
 }
 
-// 显示商品操作反馈
 function loadGoodsDisplay() {
   const goods = getGoods();
   const previewDiv = document.getElementById("goodsPreview");
-  previewDiv.innerHTML = `<div class="success-msg">✅ 当前共有 ${goods.length} 个商品在售，用户端将同步显示</div>`;
+  previewDiv.innerHTML = `<div class="success-msg">✅ 当前共有 ${goods.length} 个商品在售</div>`;
   setTimeout(() => {
     if (previewDiv.innerHTML.includes("当前共有")) {
       previewDiv.innerHTML = "";
@@ -381,7 +753,6 @@ function loadGoodsDisplay() {
   }, 3000);
 }
 
-// 上传商品CSV文件
 function uploadGoods() {
   const file = document.getElementById("fileInput").files[0];
   if (!file) {
@@ -398,13 +769,10 @@ function uploadGoods() {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       let parts = line.split(",");
-      if (parts.length < 2) {
-        parts = line.split("，");
-      }
+      if (parts.length < 2) parts = line.split("，");
       if (parts.length >= 2) {
         let code = parts[0].trim();
         let name = parts[1].trim();
-        // 自动识别格式：如果第一部分看起来像名称（中文为主），则交换
         if (/[\u4e00-\u9fa5]/.test(code) && !/[\u4e00-\u9fa5]/.test(name)) {
           [code, name] = [name, code];
         }
@@ -420,17 +788,11 @@ function uploadGoods() {
     }
     
     saveGoods(newGoods);
-    const previewDiv = document.getElementById("goodsPreview");
-    previewDiv.innerHTML = `<div class="success-msg">✅ 已成功上传 ${newGoods.length} 个商品，用户端将同步更新</div>`;
-    setTimeout(() => {
-      previewDiv.innerHTML = "";
-    }, 3000);
-    alert(`成功上传 ${newGoods.length} 个商品`);
+    showMessage(`✅ 已成功上传 ${newGoods.length} 个商品`);
   };
   reader.readAsText(file, "UTF-8");
 }
 
-// 下载商品模板
 function exportSampleTemplate() {
   const sample = "6941899614135,红岁驰春 迷你吧唧1对\n6941899614234,南漫社限定亚克力立牌\n6941899614331,星尘回忆 色纸套装";
   const blob = new Blob(["\uFEFF" + sample], { type: "text/csv;charset=utf-8" });
@@ -441,7 +803,6 @@ function exportSampleTemplate() {
   URL.revokeObjectURL(a.href);
 }
 
-// 查看当前商品列表
 function viewCurrentGoods() {
   const goods = getGoods();
   const container = document.getElementById("goodsListContainer");
@@ -450,9 +811,7 @@ function viewCurrentGoods() {
   } else {
     container.innerHTML = `
       <table class="goods-table">
-        <thead>
-          <tr><th>商品编码</th><th>商品名称</th><th>操作</th></tr>
-        </thead>
+        <thead><tr><th>商品编码</th><th>商品名称</th><th>操作</th></tr></thead>
         <tbody>
           ${goods.map((g, idx) => `
             <tr>
@@ -509,253 +868,33 @@ function deleteGoods(index) {
   goods.splice(index, 1);
   saveGoods(goods);
   viewCurrentGoods();
-  alert("商品已删除");
+  showMessage("商品已删除");
 }
 
-// ========== 订单管理 ==========
-
-// 加载所有订单
-async function loadAllOrders() {
-  try {
-    const res = await fetch(`${API}/list`, { headers: { token: TOKEN } });
-    const j = await res.json();
-    if (j.code !== 0) { 
-      alert(j.msg || "加载失败"); 
-      return; 
-    }
-    allOrders = (j.list || []).map(item => JSON.parse(atob(item.data)));
-    currentFilteredOrders = [...allOrders];
-    renderOrderList(currentFilteredOrders);
-    document.getElementById("orderCountBadge").innerText = `📊 订单数: ${allOrders.length}`;
-  } catch (e) {
-    alert("网络异常，加载订单失败");
-  }
+// 初始化
+async function init() {
+  await syncGoodsFromCloud();
 }
 
-// 渲染订单列表
-function renderOrderList(orders) {
-  const container = document.getElementById("orderList");
-  if (!orders.length) {
-    container.innerHTML = `<div class="empty-orders">📭 暂无订单</div>`;
-    return;
-  }
-  container.innerHTML = orders.map(order => `
-    <div class="order-card">
-      <div class="order-header">
-        <span class="order-no">🧾 ${escapeHtml(order.orderNo)}</span>
-        <span>${escapeHtml(order.createTime)}</span>
-      </div>
-      <div class="info-grid">
-        <div>👤 ${escapeHtml(order.name)}</div>
-        <div>📞 ${escapeHtml(order.phone)}</div>
-        <div>📍 ${escapeHtml(order.address)}</div>
-      </div>
-      <div class="goods-detail">
-        ${order.goods.map(g => `<div>• ${escapeHtml(g.name)} ×${g.num}（${escapeHtml(g.code)}）</div>`).join('')}
-      </div>
-      <div class="logistics-area">
-        <input type="text" class="logistics-input" value="${escapeHtml(order.logistics || '')}" placeholder="物流单号" id="log_${order.orderNo}">
-        <button class="btn btn-blue" onclick="updateLogistics('${order.orderNo}')">保存物流</button>
-        <button class="btn btn-red" onclick="deleteOrder('${order.orderNo}')">删除订单</button>
-      </div>
-    </div>
-  `).join("");
-}
-
-// 更新物流
-async function updateLogistics(orderNo) {
-  const logi = document.getElementById(`log_${orderNo}`).value.trim();
-  if (!logi) return alert("请输入物流单号");
-  try {
-    const res = await fetch(`${API}/logistics`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", token: TOKEN },
-      body: JSON.stringify({ orderNo, logistics: logi })
-    });
-    const result = await res.json();
-    if (result.code === 0) {
-      alert("物流已同步");
-      loadAllOrders();
-    } else {
-      alert("更新失败：" + (result.msg || "未知错误"));
-    }
-  } catch (e) {
-    alert("同步失败：" + e.message);
-  }
-}
-
-// 删除订单
-async function deleteOrder(orderNo) {
-  if (!confirm(`确定删除订单 ${orderNo} 吗？此操作不可恢复`)) return;
-  try {
-    const res = await fetch(`${API}/delete?orderNo=${orderNo}`, { headers: { token: TOKEN } });
-    const result = await res.json();
-    if (result.code === 0) {
-      alert("订单已删除");
-      loadAllOrders();
-    } else {
-      alert("删除失败：" + (result.msg || "未知错误"));
-    }
-  } catch (e) {
-    alert("删除失败");
-  }
-}
-
-// 搜索订单
-function searchByOrderNo() {
-  const no = document.getElementById("searchOrderNo").value.trim();
-  if (!no) {
-    alert("请输入订单号");
-    return;
-  }
-  currentSearchNo = no;
-  const list = allOrders.filter(o => o.orderNo === no);
-  renderOrderList(list);
-}
-
-// 清除筛选
-function clearSearch() {
-  currentSearchNo = "";
-  document.getElementById("searchOrderNo").value = "";
-  document.getElementById("startDate").value = "";
-  document.getElementById("endDate").value = "";
-  renderOrderList(allOrders);
-}
-
-// 按日期筛选
-function filterOrdersByDate() {
-  const start = document.getElementById("startDate").value;
-  const end = document.getElementById("endDate").value;
-  let list = [...allOrders];
-  if (start) list = list.filter(o => o.createTime >= start);
-  if (end) list = list.filter(o => o.createTime <= end + " 23:59:59");
-  renderOrderList(list);
-}
-
-// 导出订单
-function exportFilteredOrders() {
-  const currentList = document.getElementById("orderList").innerHTML;
-  if (currentList.includes("暂无订单")) {
-    alert("无数据可导出");
-    return;
-  }
-  
-  let list = currentSearchNo ? allOrders.filter(o => o.orderNo === currentSearchNo) : allOrders;
-  const start = document.getElementById("startDate").value;
-  const end = document.getElementById("endDate").value;
-  if (start || end) {
-    list = [...allOrders];
-    if (start) list = list.filter(o => o.createTime >= start);
-    if (end) list = list.filter(o => o.createTime <= end + " 23:59:59");
-  }
-  
-  if (list.length === 0) {
-    alert("无数据可导出");
-    return;
-  }
-  
-  const csvRows = ["订单号,下单时间,姓名,电话,地址,商品,数量,编码,物流"];
-  list.forEach(o => {
-    o.goods.forEach(g => {
-      csvRows.push(`"${o.orderNo}","${o.createTime}","${o.name}","${o.phone}","${o.address}","${g.name}",${g.num},"${g.code}","${o.logistics || ""}"`);
-    });
-  });
-  
-  const csv = "\uFEFF" + csvRows.join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `南漫社订单_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
-  alert("导出成功");
-}
-
-// 批量上传物流
-async function batchUploadLogistics() {
-  const file = document.getElementById("logisticsFile").files[0];
-  if (!file) {
-    alert("请选择文件");
-    return;
-  }
-  
-  const reader = new FileReader();
-  reader.onload = async (e) => {
-    const text = e.target.result;
-    const lines = text.split(/\r?\n/).filter(i => i.trim());
-    const map = {};
-    let successCount = 0;
-    let failCount = 0;
-    
-    lines.forEach(line => {
-      const [no, log] = line.split(",");
-      if (no && log) {
-        map[no.trim()] = log.trim();
-      }
-    });
-    
-    if (Object.keys(map).length === 0) {
-      alert("文件格式错误，请确保每行格式为：订单号,物流单号");
-      return;
-    }
-    
-    try {
-      const res = await fetch(`${API}/batch`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", token: TOKEN },
-        body: JSON.stringify({ map })
-      });
-      const result = await res.json();
-      if (result.code === 0) {
-        alert(`批量更新完成，共更新 ${Object.keys(map).length} 个订单`);
-        loadAllOrders();
-      } else {
-        alert("批量更新失败：" + (result.msg || "未知错误"));
-      }
-    } catch(e) {
-      alert("批量更新失败：" + e.message);
-    }
-  };
-  reader.readAsText(file);
-}
-
-// 下载物流模板
-function downloadLogisticsTemplate() {
-  const csv = "NMS123456,SF1234567890\nNMS654321,YT7654321098";
-  const blob = new Blob([csv], { type: "text/plain;charset=utf-8" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "物流批量模板.txt";
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
-
-// HTML转义
-function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]||m));
-}
-
-// 页面加载时从云端同步商品
 async function syncGoodsFromCloud() {
   try {
     const res = await fetch(`${API}/goods/get`, { headers: { token: TOKEN } });
     if (res.ok) {
       const j = await res.json();
       if (j.code === 0 && j.goods) {
-        const cloudGoods = JSON.parse(atob(j.goods));
+        const decoded = safeBase64Decode(j.goods);
+        const cloudGoods = JSON.parse(decoded);
         if (cloudGoods && cloudGoods.length > 0) {
           localStorage.setItem(STORAGE_GOODS, JSON.stringify(cloudGoods));
         }
       }
     }
   } catch(e) {
-    console.log("云端同步失败，使用本地商品");
+    console.log("云端同步失败");
   }
 }
 
-// 初始化
-syncGoodsFromCloud();
+init();
 </script>
 </body>
 </html>
