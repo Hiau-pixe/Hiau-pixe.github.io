@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>南漫社 · 商家后台管理</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: system-ui, '微软雅黑', sans-serif;
+  }
+  body {
+    background: #f0f2f6;
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  h1 {
+    text-align: center;
+    font-size: 26px;
+    font-weight: 700;
+    color: #d81e06;
+    margin-bottom: 20px;
+  }
+  .admin-card {
+    background: #ffffff;
+    border-radius: 24px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
+  }
+  .card-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    border-left: 5px solid #d81e06;
+    padding-left: 14px;
+    color: #1e2a3a;
+  }
+  .btn {
+    padding: 8px 18px;
+    background: #07c160;
+    color: white;
+    border: none;
+    border-radius: 40px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-right: 10px;
+    margin-bottom: 8px;
+  }
+  .btn-red {
+    background: #d81e06;
+  }
+  .btn-blue {
+    background: #1677ff;
+  }
+  .btn-outline {
+    background: #f4f5f7;
+    color: #2c3e50;
+    border: 1px solid #dcdfe6;
+  }
+  .flex-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  input, select {
+    padding: 10px 14px;
+    border: 1px solid #dcdfe6;
+    border-radius: 40px;
+    font-size: 14px;
+    outline: none;
+  }
+  input:focus {
+    border-color: #d81e06;
+  }
+  .order-list-container {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+  .order-card {
+    background: #fff;
+    border: 1px solid #eceef2;
+    border-radius: 20px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .order-header {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #e9ecef;
+  }
+  .order-no {
+    font-weight: 800;
+    color: #d81e06;
+    background: #fff1ed;
+    padding: 2px 12px;
+    border-radius: 30px;
+    font-size: 14px;
+  }
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 8px;
+    margin: 12px 0;
+    font-size: 14px;
+  }
+  .goods-detail {
+    background: #f8f9fc;
+    padding: 10px 12px;
+    border-radius: 16px;
+    margin: 8px 0;
+  }
+  .logistics-area {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .logistics-input {
+    flex: 2;
+    min-width: 180px;
+    padding: 8px 14px;
+    border-radius: 40px;
+    border: 1px solid #ddd;
+  }
+  .badge-shipped {
+    background: #e6f7e6;
+    color: #2c6e2c;
+    padding: 4px 12px;
+    border-radius: 30px;
+    font-size: 12px;
+  }
+  .search-box {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+  }
+  .search-input {
+    flex: 1;
+    min-width: 200px;
+  }
+  .empty-orders {
+    text-align: center;
+    padding: 40px;
+    color: #8c9aa9;
+  }
+  .batch-area {
+    background: #fef6e0;
+    padding: 16px;
+    border-radius: 20px;
+    margin-top: 12px;
+  }
+  .stats-badge {
+    background: #fef0e6;
+    border-radius: 30px;
+    padding: 4px 12px;
+    font-size: 13px;
+  }
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    .admin-card { padding: 16px; }
+    .flex-row { flex-direction: column; align-items: stretch; }
+  }
+</style>
+</head>
+<body>
+<h1>🏪 南漫社 · 商家管理后台</h1>
+<div class="admin-card">
+  <div class="card-title">📦 商品库管理</div>
+  <div class="flex-row">
+    <input type="file" id="fileInput" accept=".csv,.txt">
+    <button class="btn" onclick="uploadGoods()">📤 上传并覆盖商品</button>
+    <button class="btn btn-blue" onclick="exportSampleTemplate()">📎 下载商品模板</button>
+    <button class="btn btn-outline" onclick="viewCurrentGoods()">👁️ 查看商品列表</button>
+  </div>
+  <div id="goodsPreview" style="font-size:13px; color:#2c6e2c;"></div>
+</div>
+<div class="admin-card">
+  <div class="card-title">📋 订单管理中心</div>
+  <div class="search-box">
+    <div class="flex-row" style="margin-bottom:0;">
+      <input type="text" id="searchOrderNo" class="search-input" placeholder="🔍 按订单号精确查询">
+      <button class="btn btn-blue" onclick="searchByOrderNo()">查询订单</button>
+      <button class="btn btn-outline" onclick="clearSearch()">清除筛选</button>
+    </div>
+  </div>
+  <div class="flex-row">
+    <input type="date" id="startDate" placeholder="开始日期">
+    <input type="date" id="endDate" placeholder="结束日期">
+    <button class="btn btn-blue" onclick="loadOrders()">🔍 日期筛选</button>
+    <button class="btn btn-red" onclick="exportFilteredOrders()">📥 导出筛选结果</button>
+    <span class="stats-badge" id="orderCountBadge">订单数: --</span>
+  </div>
+  <div class="batch-area">
+    <div style="font-weight:600; margin-bottom:10px;">📦 批量上传物流单号</div>
+    <div class="flex-row">
+      <input type="file" id="logisticsFile" accept=".csv,.txt">
+      <button class="btn btn-blue" onclick="batchUploadLogistics()">🚚 批量更新物流</button>
+      <button class="btn btn-outline" onclick="downloadLogisticsTemplate()">📎 下载物流模板</button>
+    </div>
+    <div style="font-size:12px; color:#666; margin-top:8px;">
+      💡 模板格式：A列订单号，B列物流单号（CSV格式，无需表头）
+    </div>
+  </div>
+  <div id="orderList" class="order-list-container">
+    <div class="empty-orders">加载订单中...</div>
+  </div>
+</div>
+<script>
+  const STORAGE_GOODS = "goodsData";
+  const STORAGE_ORDERS = "nmsOrders";
+  let currentSearchNo = "";
+
+  function uploadGoods() {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file) return alert("请选择文件");
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      let text;
+      try { text = new TextDecoder("gbk").decode(new Uint8Array(e.target.result)); }
+      catch(e) { text = new TextDecoder("utf-8").decode(new Uint8Array(e.target.result)); }
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const goods = [];
+      lines.forEach(line => {
+        let [code, name] = line.split(",");
+        if (code && name) {
+          code = code.replace(/^["']|["']$/g, '').trim();
+          name = name.replace(/^["']|["']$/g, '').trim();
+          if (code && name) goods.push({ code, name });
+        }
+      });
+      if (goods.length === 0) return alert("未识别到有效商品数据，格式：编码,商品名称");
+      localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
+      alert(`✅ 上传成功！共 ${goods.length} 件商品`);
+      showGoodsPreview(goods);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function showGoodsPreview(goods) {
+    const preview = document.getElementById("goodsPreview");
+    if (goods && goods.length) {
+      preview.innerHTML = `📚 当前商品库：${goods.length}件商品 (${goods.slice(0,3).map(g=>g.name).join("、")}${goods.length>3?"…":""})`;
+    } else {
+      const g = JSON.parse(localStorage.getItem(STORAGE_GOODS) || "[]");
+      if (g.length) preview.innerHTML = `📚 商品库：${g.length}件商品`;
+      else preview.innerHTML = "⚡ 暂无商品，请上传";
+    }
+  }
+
+  function viewCurrentGoods() {
+    const goods = JSON.parse(localStorage.getItem(STORAGE_GOODS) || "[]");
+    if (!goods.length) return alert("暂无商品");
+    alert(goods.map((g,i) => `${i+1}. ${g.name} (${g.code})`).join("\n"));
+  }
+
+  function exportSampleTemplate() {
+    const csv = "编码,商品名称\n6941899614135,红岁驰春 迷你吧唧1对\n6941899614234,南漫社限定亚克力立牌";
+    downloadCSV(csv, "商品上传模板.csv");
+  }
+
+  function getAllOrders() {
+    let orders = JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
+    orders.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return orders;
+  }
+
+  function saveOrders(orders) {
+    localStorage.setItem(STORAGE_ORDERS, JSON.stringify(orders));
+    window.dispatchEvent(new Event("orderUpdate"));
+  }
+
+  function loadOrders() {
+    let orders = getAllOrders();
+    if (currentSearchNo) {
+      orders = orders.filter(o => o.orderNo === currentSearchNo);
+    } else {
+      const startDate = document.getElementById("startDate").value;
+      const endDate = document.getElementById("endDate").value;
+      if (startDate) {
+        const startTime = new Date(startDate).setHours(0,0,0,0);
+        orders = orders.filter(o => (o.timestamp || 0) >= startTime);
+      }
+      if (endDate) {
+        const endTime = new Date(endDate).setHours(23,59,59,999);
+        orders = orders.filter(o => (o.timestamp || 0) <= endTime);
+      }
+    }
+    document.getElementById("orderCountBadge").innerHTML = `📊 订单数: ${orders.length}`;
+    renderOrderList(orders);
+  }
+
+  function searchByOrderNo() {
+    const searchNo = document.getElementById("searchOrderNo").value.trim();
+    if (!searchNo) { alert("请输入订单号"); return; }
+    currentSearchNo = searchNo; loadOrders();
+  }
+
+  function clearSearch() {
+    currentSearchNo = "";
+    document.getElementById("searchOrderNo").value = "";
+    loadOrders();
+  }
+
+  function renderOrderList(orders) {
+    const container = document.getElementById("orderList");
+    if (!orders.length) { container.innerHTML = `<div class="empty-orders">📭 暂无订单</div>`; return; }
+    container.innerHTML = orders.map(order => {
+      const goodsHtml = (order.goods || []).map(g => 
+        `<span style="background:#f2f4f8; padding:2px 10px; border-radius:20px; margin-right:6px;">${escapeHtml(g.name)} ×${g.num}</span>`
+      ).join("");
+      const codesHtml = (order.goods || []).map(g => 
+        `<span class="code-text" style="background:#eef3ff; padding:2px 8px; border-radius:20px; font-size:12px;">${escapeHtml(g.code)}</span>`
+      ).join(", ");
+      const hasLogistics = order.logistics && order.logistics.trim();
+      return `
+        <div class="order-card">
+          <div class="order-header">
+            <div><span class="order-no">🧾 ${escapeHtml(order.orderNo)}</span></div>
+            <div style="color:#6c7a8a;">🕒 ${escapeHtml(order.createTime || '未知')}</div>
+          </div>
+          <div class="info-grid">
+            <div>👤 ${escapeHtml(order.name)}</div>
+            <div>📞 ${escapeHtml(order.phone)}</div>
+            <div>📍 ${escapeHtml(order.address)}</div>
+          </div>
+          <div class="goods-detail">
+            <div style="font-weight:500; margin-bottom:6px;">🎁 商品明细：</div>
+            <div>${goodsHtml || '无'}</div>
+            <div style="margin-top:6px;">🔖 编码：${codesHtml || '—'}</div>
+          </div>
+          <div class="logistics-area">
+            <div>${hasLogistics ? '<span class="badge-shipped">📮 已发货</span>' : '<span style="background:#ffefe5; padding:2px 12px; border-radius:30px;">⏳ 待发货</span>'}</div>
+            <input type="text" id="log_${order.orderNo}" class="logistics-input" placeholder="输入物流单号" value="${escapeHtml(order.logistics || '')}">
+            <button class="btn btn-blue" style="padding:6px 14px;" onclick="updateLogistics('${order.orderNo}')">💾 保存</button>
+            <button class="btn btn-red" style="padding:6px 14px; background:#ff4d4f;" onclick="deleteOrder('${order.orderNo}')">🗑️ 删除订单</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function updateLogistics(orderNo) {
+    const input = document.getElementById(`log_${orderNo}`);
+    const logistics = input.value.trim();
+    if (!logistics) return alert("请输入物流单号");
+    let orders = getAllOrders();
+    const index = orders.findIndex(o => o.orderNo === orderNo);
+    if (index !== -1) {
+      orders[index].logistics = logistics;
+      saveOrders(orders);
+      alert(`✅ 订单 ${orderNo} 物流已更新`);
+      loadOrders();
+    }
+  }
+
+  function deleteOrder(orderNo) {
+    if (!confirm(`确定删除订单 ${orderNo} 吗？用户端也将同步删除。`)) return;
+    let orders = getAllOrders();
+    const newOrders = orders.filter(o => o.orderNo !== orderNo);
+    saveOrders(newOrders);
+    alert(`✅ 订单 ${orderNo} 已删除`);
+    loadOrders();
+  }
+
+  function batchUploadLogistics() {
+    const file = document.getElementById("logisticsFile").files[0];
+    if (!file) return alert("请选择物流单号文件");
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      let text;
+      try { text = new TextDecoder("gbk").decode(new Uint8Array(e.target.result)); }
+      catch(e) { text = new TextDecoder("utf-8").decode(new Uint8Array(e.target.result)); }
+      const lines = text.split(/\r?\n/).filter(l => l.trim());
+      const logisticsMap = {};
+      let successCount = 0, notFoundCount = 0;
+      lines.forEach(line => {
+        let [orderNo, logistics] = line.split(",");
+        if (orderNo && logistics) {
+          orderNo = orderNo.replace(/^["']|["']$/g, '').trim();
+          logistics = logistics.replace(/^["']|["']$/g, '').trim();
+          if (orderNo && logistics) logisticsMap[orderNo] = logistics;
+        }
+      });
+      if (Object.keys(logisticsMap).length === 0) return alert("未识别到有效数据，格式：订单号,物流单号");
+      let orders = getAllOrders();
+      for (const [orderNo, logistics] of Object.entries(logisticsMap)) {
+        const index = orders.findIndex(o => o.orderNo === orderNo);
+        if (index !== -1) { orders[index].logistics = logistics; successCount++; }
+        else notFoundCount++;
+      }
+      if (successCount > 0) { saveOrders(orders); alert(`✅ 批量更新完成！成功：${successCount} 笔，未找到：${notFoundCount} 笔`); loadOrders(); }
+      else alert(`❌ 未找到匹配订单`);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function downloadLogisticsTemplate() {
+    const csv = "订单号,物流单号\nNMS1735200000000,SF1234567890\nNMS1735200000001,YT9876543210";
+    downloadCSV(csv, "物流批量上传模板.csv");
+  }
+
+  function exportFilteredOrders() {
+    let orders = getAllOrders();
+    if (currentSearchNo) orders = orders.filter(o => o.orderNo === currentSearchNo);
+    else {
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      if (start) orders = orders.filter(o => o.timestamp >= new Date(start).setHours(0,0,0,0));
+      if (end) orders = orders.filter(o => o.timestamp <= new Date(end).setHours(23,59,59,999));
+    }
+    if (orders.length === 0) return alert("无订单可导出");
+    const headers = ["订单号","下单日期","收件人","电话","地址","商品名称","数量","商品编码","物流单号"];
+    const rows = [headers];
+    orders.forEach(o => {
+      (o.goods || []).forEach(g => {
+        rows.push([o.orderNo, o.createTime, o.name, o.phone, o.address, g.name, g.num, g.code, o.logistics || ""]);
+      });
+    });
+    const csv = rows.map(r => r.map(c => {
+      if (typeof c === "string" && (c.includes(",") || c.includes('"'))) return `"${c.replace(/"/g, '""')}"`;
+      return c;
+    }).join(",")).join("\n");
+    const suffix = currentSearchNo ? `订单_${currentSearchNo}` : `${document.getElementById("startDate").value||"全部"}_至_${document.getElementById("endDate").value||"全部"}`;
+    downloadCSV("\uFEFF"+csv, `南漫社订单_${suffix}.csv`);
+  }
+
+  function downloadCSV(content, filename) {
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function escapeHtml(str) {
+    if (!str) return "";
+    return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]||m));
+  }
+
+  window.addEventListener("orderUpdate", () => loadOrders());
+  window.addEventListener("storage", () => loadOrders());
+
+  window.onload = () => {
+    showGoodsPreview();
+    loadOrders();
+  };
+</script>
+</body>
+</html>
