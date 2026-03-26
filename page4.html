@@ -49,6 +49,10 @@
     cursor: pointer;
     margin-right: 10px;
     margin-bottom: 8px;
+    transition: opacity 0.2s;
+  }
+  .btn:hover {
+    opacity: 0.85;
   }
   .btn-red {
     background: #d81e06;
@@ -132,13 +136,6 @@
     border-radius: 40px;
     border: 1px solid #ddd;
   }
-  .badge-shipped {
-    background: #e6f7e6;
-    color: #2c6e2c;
-    padding: 4px 12px;
-    border-radius: 30px;
-    font-size: 12px;
-  }
   .search-box {
     background: #f8f9fa;
     padding: 12px 16px;
@@ -175,6 +172,66 @@
     text-align: center;
     box-shadow: 0 6px 20px rgba(0,0,0,0.1);
   }
+  .goods-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12px;
+  }
+  .goods-table th, .goods-table td {
+    border: 1px solid #e2e8f0;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 13px;
+  }
+  .goods-table th {
+    background: #f8f9fa;
+  }
+  .delete-goods-btn {
+    background: #ff4d4f;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  .modal-content {
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+  .success-msg {
+    background: #e6f7e6;
+    color: #2c6e2c;
+    padding: 8px 12px;
+    border-radius: 20px;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  .error-msg {
+    background: #fff1ed;
+    color: #d81e06;
+    padding: 8px 12px;
+    border-radius: 20px;
+    margin-top: 12px;
+    font-size: 13px;
+  }
 </style>
 </head>
 <body>
@@ -194,8 +251,9 @@
     <button class="btn" onclick="uploadGoods()">📤 上传并覆盖商品</button>
     <button class="btn btn-blue" onclick="exportSampleTemplate()">📎 下载商品模板</button>
     <button class="btn btn-outline" onclick="viewCurrentGoods()">👁️ 查看商品列表</button>
+    <button class="btn btn-outline" onclick="showAddGoodsModal()">➕ 手动添加商品</button>
   </div>
-  <div id="goodsPreview" style="font-size:13px; color:#2c6e2c;"></div>
+  <div id="goodsPreview"></div>
 </div>
 
 <div class="admin-card">
@@ -210,7 +268,7 @@
   <div class="flex-row">
     <input type="date" id="startDate">
     <input type="date" id="endDate">
-    <button class="btn btn-blue" onclick="loadOrders()">🔍 筛选</button>
+    <button class="btn btn-blue" onclick="filterOrdersByDate()">🔍 筛选</button>
     <button class="btn btn-red" onclick="exportFilteredOrders()">📥 导出筛选结果</button>
     <span class="stats-badge" id="orderCountBadge">订单数: --</span>
   </div>
@@ -221,10 +279,30 @@
       <button class="btn btn-blue" onclick="batchUploadLogistics()">🚚 批量更新</button>
       <button class="btn btn-outline" onclick="downloadLogisticsTemplate()">📎 下载模板</button>
     </div>
-    <div style="font-size:12px;color:#666;margin-top:6px;">格式：订单号,物流单号</div>
+    <div style="font-size:12px;color:#666;margin-top:6px;">格式：订单号,物流单号（每行一条）</div>
   </div>
   <div id="orderList" class="order-list-container"></div>
 </div>
+</div>
+
+<!-- 商品列表模态框 -->
+<div id="goodsModal" class="modal">
+  <div class="modal-content">
+    <h3 style="margin-bottom:16px;">📦 当前商品列表</h3>
+    <div id="goodsListContainer"></div>
+    <button class="btn btn-outline" onclick="closeGoodsModal()" style="margin-top:16px;">关闭</button>
+  </div>
+</div>
+
+<!-- 添加商品模态框 -->
+<div id="addGoodsModal" class="modal">
+  <div class="modal-content">
+    <h3 style="margin-bottom:16px;">➕ 手动添加商品</h3>
+    <input type="text" id="newGoodsCode" placeholder="商品编码（如：6941899614135）" style="width:100%; margin-bottom:12px;">
+    <input type="text" id="newGoodsName" placeholder="商品名称" style="width:100%; margin-bottom:12px;">
+    <button class="btn" onclick="addGoods()">确认添加</button>
+    <button class="btn btn-outline" onclick="closeAddGoodsModal()">取消</button>
+  </div>
 </div>
 
 <script>
@@ -233,36 +311,228 @@ const API = "https://api.aimonkey.cn/nms";
 const TOKEN = "nanmansheadmin";
 const ADMIN_PWD = "nms123";
 
+// localStorage 键名
+const STORAGE_GOODS = "goodsData";
+
 let currentSearchNo = "";
 let allOrders = [];
+let currentFilteredOrders = [];
 
-// 登录验证
+// ========== 登录 ==========
 function login() {
   const p = document.getElementById("pwd").value.trim();
   if (p === ADMIN_PWD) {
     document.getElementById("login").style.display = "none";
     document.getElementById("admin").style.display = "block";
     loadAllOrders();
+    loadGoodsDisplay();
   } else {
     alert("密码错误");
   }
 }
 
-// 加载所有订单（云端）
+// ========== 商品管理 ==========
+
+// 获取商品列表
+function getGoods() {
+  let goods = localStorage.getItem(STORAGE_GOODS);
+  if (!goods) {
+    goods = [
+      { code: "6941899614135", name: "红岁驰春 迷你吧唧1对" },
+      { code: "6941899614234", name: "南漫社限定亚克力立牌" },
+      { code: "6941899614331", name: "星尘回忆 色纸套装" }
+    ];
+    localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
+    return goods;
+  }
+  return JSON.parse(goods);
+}
+
+// 保存商品列表（同时同步到云端）
+function saveGoods(goods) {
+  localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
+  syncGoodsToCloud(goods);
+  loadGoodsDisplay();
+}
+
+// 同步商品到云端API
+async function syncGoodsToCloud(goods) {
+  try {
+    await fetch(`${API}/goods/sync`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", token: TOKEN },
+      body: JSON.stringify({ goods: btoa(JSON.stringify(goods)) })
+    });
+    console.log("商品已同步到云端");
+  } catch(e) {
+    console.log("云端同步失败，已保存到本地");
+  }
+}
+
+// 显示商品操作反馈
+function loadGoodsDisplay() {
+  const goods = getGoods();
+  const previewDiv = document.getElementById("goodsPreview");
+  previewDiv.innerHTML = `<div class="success-msg">✅ 当前共有 ${goods.length} 个商品在售，用户端将同步显示</div>`;
+  setTimeout(() => {
+    if (previewDiv.innerHTML.includes("当前共有")) {
+      previewDiv.innerHTML = "";
+    }
+  }, 3000);
+}
+
+// 上传商品CSV文件
+function uploadGoods() {
+  const file = document.getElementById("fileInput").files[0];
+  if (!file) {
+    alert("请选择CSV或TXT文件");
+    return;
+  }
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const content = e.target.result;
+    const lines = content.split(/\r?\n/).filter(line => line.trim());
+    const newGoods = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      let parts = line.split(",");
+      if (parts.length < 2) {
+        parts = line.split("，");
+      }
+      if (parts.length >= 2) {
+        let code = parts[0].trim();
+        let name = parts[1].trim();
+        // 自动识别格式：如果第一部分看起来像名称（中文为主），则交换
+        if (/[\u4e00-\u9fa5]/.test(code) && !/[\u4e00-\u9fa5]/.test(name)) {
+          [code, name] = [name, code];
+        }
+        if (code && name) {
+          newGoods.push({ code, name });
+        }
+      }
+    }
+    
+    if (newGoods.length === 0) {
+      alert("文件格式错误，请确保每行格式为：商品编码,商品名称");
+      return;
+    }
+    
+    saveGoods(newGoods);
+    const previewDiv = document.getElementById("goodsPreview");
+    previewDiv.innerHTML = `<div class="success-msg">✅ 已成功上传 ${newGoods.length} 个商品，用户端将同步更新</div>`;
+    setTimeout(() => {
+      previewDiv.innerHTML = "";
+    }, 3000);
+    alert(`成功上传 ${newGoods.length} 个商品`);
+  };
+  reader.readAsText(file, "UTF-8");
+}
+
+// 下载商品模板
+function exportSampleTemplate() {
+  const sample = "6941899614135,红岁驰春 迷你吧唧1对\n6941899614234,南漫社限定亚克力立牌\n6941899614331,星尘回忆 色纸套装";
+  const blob = new Blob(["\uFEFF" + sample], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "商品模板.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// 查看当前商品列表
+function viewCurrentGoods() {
+  const goods = getGoods();
+  const container = document.getElementById("goodsListContainer");
+  if (goods.length === 0) {
+    container.innerHTML = "<div style='color:#999; padding:20px; text-align:center;'>暂无商品，请先上传商品</div>";
+  } else {
+    container.innerHTML = `
+      <table class="goods-table">
+        <thead>
+          <tr><th>商品编码</th><th>商品名称</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          ${goods.map((g, idx) => `
+            <tr>
+              <td>${escapeHtml(g.code)}</td>
+              <td>${escapeHtml(g.name)}</td>
+              <td><button class="delete-goods-btn" onclick="deleteGoods(${idx})">删除</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+  document.getElementById("goodsModal").style.display = "flex";
+}
+
+function closeGoodsModal() {
+  document.getElementById("goodsModal").style.display = "none";
+}
+
+function showAddGoodsModal() {
+  document.getElementById("newGoodsCode").value = "";
+  document.getElementById("newGoodsName").value = "";
+  document.getElementById("addGoodsModal").style.display = "flex";
+}
+
+function closeAddGoodsModal() {
+  document.getElementById("addGoodsModal").style.display = "none";
+}
+
+function addGoods() {
+  const code = document.getElementById("newGoodsCode").value.trim();
+  const name = document.getElementById("newGoodsName").value.trim();
+  if (!code || !name) {
+    alert("请填写完整的商品编码和名称");
+    return;
+  }
+  const goods = getGoods();
+  if (goods.some(g => g.code === code)) {
+    alert("商品编码已存在");
+    return;
+  }
+  goods.push({ code, name });
+  saveGoods(goods);
+  alert("商品添加成功");
+  closeAddGoodsModal();
+  if (document.getElementById("goodsModal").style.display === "flex") {
+    viewCurrentGoods();
+  }
+}
+
+function deleteGoods(index) {
+  if (!confirm("确定删除该商品吗？")) return;
+  const goods = getGoods();
+  goods.splice(index, 1);
+  saveGoods(goods);
+  viewCurrentGoods();
+  alert("商品已删除");
+}
+
+// ========== 订单管理 ==========
+
+// 加载所有订单
 async function loadAllOrders() {
   try {
     const res = await fetch(`${API}/list`, { headers: { token: TOKEN } });
     const j = await res.json();
-    if (j.code !== 0) { alert(j.msg || "加载失败"); return; }
+    if (j.code !== 0) { 
+      alert(j.msg || "加载失败"); 
+      return; 
+    }
     allOrders = (j.list || []).map(item => JSON.parse(atob(item.data)));
-    renderOrderList(allOrders);
+    currentFilteredOrders = [...allOrders];
+    renderOrderList(currentFilteredOrders);
     document.getElementById("orderCountBadge").innerText = `📊 订单数: ${allOrders.length}`;
   } catch (e) {
     alert("网络异常，加载订单失败");
   }
 }
 
-// 渲染订单
+// 渲染订单列表
 function renderOrderList(orders) {
   const container = document.getElementById("orderList");
   if (!orders.length) {
@@ -272,21 +542,21 @@ function renderOrderList(orders) {
   container.innerHTML = orders.map(order => `
     <div class="order-card">
       <div class="order-header">
-        <span class="order-no">🧾 ${order.orderNo}</span>
-        <span>${order.createTime}</span>
+        <span class="order-no">🧾 ${escapeHtml(order.orderNo)}</span>
+        <span>${escapeHtml(order.createTime)}</span>
       </div>
       <div class="info-grid">
-        <div>👤 ${order.name}</div>
-        <div>📞 ${order.phone}</div>
-        <div>📍 ${order.address}</div>
+        <div>👤 ${escapeHtml(order.name)}</div>
+        <div>📞 ${escapeHtml(order.phone)}</div>
+        <div>📍 ${escapeHtml(order.address)}</div>
       </div>
       <div class="goods-detail">
-        ${order.goods.map(g => `<div>• ${g.name} ×${g.num}（${g.code}）</div>`).join('')}
+        ${order.goods.map(g => `<div>• ${escapeHtml(g.name)} ×${g.num}（${escapeHtml(g.code)}）</div>`).join('')}
       </div>
       <div class="logistics-area">
-        <input type="text" class="logistics-input" value="${order.logistics||''}" placeholder="物流单号" id="log_${order.orderNo}">
-        <button class="btn btn-blue" onclick="updateLogistics('${order.orderNo}')">保存</button>
-        <button class="btn btn-red" onclick="deleteOrder('${order.orderNo}')">删除</button>
+        <input type="text" class="logistics-input" value="${escapeHtml(order.logistics || '')}" placeholder="物流单号" id="log_${order.orderNo}">
+        <button class="btn btn-blue" onclick="updateLogistics('${order.orderNo}')">保存物流</button>
+        <button class="btn btn-red" onclick="deleteOrder('${order.orderNo}')">删除订单</button>
       </div>
     </div>
   `).join("");
@@ -297,31 +567,47 @@ async function updateLogistics(orderNo) {
   const logi = document.getElementById(`log_${orderNo}`).value.trim();
   if (!logi) return alert("请输入物流单号");
   try {
-    await fetch(`${API}/logistics`, {
+    const res = await fetch(`${API}/logistics`, {
       method: "POST",
       headers: { "Content-Type": "application/json", token: TOKEN },
       body: JSON.stringify({ orderNo, logistics: logi })
     });
-    alert("物流已同步");
-    loadAllOrders();
+    const result = await res.json();
+    if (result.code === 0) {
+      alert("物流已同步");
+      loadAllOrders();
+    } else {
+      alert("更新失败：" + (result.msg || "未知错误"));
+    }
   } catch (e) {
-    alert("同步失败");
+    alert("同步失败：" + e.message);
   }
 }
 
 // 删除订单
 async function deleteOrder(orderNo) {
-  if (!confirm("确定删除该订单？")) return;
+  if (!confirm(`确定删除订单 ${orderNo} 吗？此操作不可恢复`)) return;
   try {
-    await fetch(`${API}/delete?orderNo=${orderNo}`, { headers: { token: TOKEN } });
-    loadAllOrders();
-  } catch (e) {}
+    const res = await fetch(`${API}/delete?orderNo=${orderNo}`, { headers: { token: TOKEN } });
+    const result = await res.json();
+    if (result.code === 0) {
+      alert("订单已删除");
+      loadAllOrders();
+    } else {
+      alert("删除失败：" + (result.msg || "未知错误"));
+    }
+  } catch (e) {
+    alert("删除失败");
+  }
 }
 
 // 搜索订单
 function searchByOrderNo() {
   const no = document.getElementById("searchOrderNo").value.trim();
-  if (!no) return alert("请输入订单号");
+  if (!no) {
+    alert("请输入订单号");
+    return;
+  }
   currentSearchNo = no;
   const list = allOrders.filter(o => o.orderNo === no);
   renderOrderList(list);
@@ -331,11 +617,13 @@ function searchByOrderNo() {
 function clearSearch() {
   currentSearchNo = "";
   document.getElementById("searchOrderNo").value = "";
+  document.getElementById("startDate").value = "";
+  document.getElementById("endDate").value = "";
   renderOrderList(allOrders);
 }
 
-// 加载订单（带日期筛选）
-function loadOrders() {
+// 按日期筛选
+function filterOrdersByDate() {
   const start = document.getElementById("startDate").value;
   const end = document.getElementById("endDate").value;
   let list = [...allOrders];
@@ -346,59 +634,128 @@ function loadOrders() {
 
 // 导出订单
 function exportFilteredOrders() {
+  const currentList = document.getElementById("orderList").innerHTML;
+  if (currentList.includes("暂无订单")) {
+    alert("无数据可导出");
+    return;
+  }
+  
   let list = currentSearchNo ? allOrders.filter(o => o.orderNo === currentSearchNo) : allOrders;
-  if (list.length === 0) return alert("无数据可导出");
-  const csv = "\uFEFF订单号,下单时间,姓名,电话,地址,商品,数量,编码,物流\n" +
-    list.map(o => o.goods.map(g => 
-      `${o.orderNo},${o.createTime},${o.name},${o.phone},${o.address},${g.name},${g.num},${g.code},${o.logistics||""}`
-    ).join("\n")).join("\n");
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+  if (start || end) {
+    list = [...allOrders];
+    if (start) list = list.filter(o => o.createTime >= start);
+    if (end) list = list.filter(o => o.createTime <= end + " 23:59:59");
+  }
+  
+  if (list.length === 0) {
+    alert("无数据可导出");
+    return;
+  }
+  
+  const csvRows = ["订单号,下单时间,姓名,电话,地址,商品,数量,编码,物流"];
+  list.forEach(o => {
+    o.goods.forEach(g => {
+      csvRows.push(`"${o.orderNo}","${o.createTime}","${o.name}","${o.phone}","${o.address}","${g.name}",${g.num},"${g.code}","${o.logistics || ""}"`);
+    });
+  });
+  
+  const csv = "\uFEFF" + csvRows.join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "南漫社订单.csv";
+  a.download = `南漫社订单_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.csv`;
   a.click();
   URL.revokeObjectURL(a.href);
+  alert("导出成功");
 }
 
-// 批量物流
+// 批量上传物流
 async function batchUploadLogistics() {
   const file = document.getElementById("logisticsFile").files[0];
-  if (!file) return alert("请选择文件");
+  if (!file) {
+    alert("请选择文件");
+    return;
+  }
+  
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async (e) => {
     const text = e.target.result;
     const lines = text.split(/\r?\n/).filter(i => i.trim());
     const map = {};
+    let successCount = 0;
+    let failCount = 0;
+    
     lines.forEach(line => {
       const [no, log] = line.split(",");
-      if (no && log) map[no.trim()] = log.trim();
+      if (no && log) {
+        map[no.trim()] = log.trim();
+      }
     });
-    fetch(`${API}/batch`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", token: TOKEN },
-      body: JSON.stringify({ map })
-    }).then(() => {
-      alert("批量更新完成");
-      loadAllOrders();
-    });
+    
+    if (Object.keys(map).length === 0) {
+      alert("文件格式错误，请确保每行格式为：订单号,物流单号");
+      return;
+    }
+    
+    try {
+      const res = await fetch(`${API}/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", token: TOKEN },
+        body: JSON.stringify({ map })
+      });
+      const result = await res.json();
+      if (result.code === 0) {
+        alert(`批量更新完成，共更新 ${Object.keys(map).length} 个订单`);
+        loadAllOrders();
+      } else {
+        alert("批量更新失败：" + (result.msg || "未知错误"));
+      }
+    } catch(e) {
+      alert("批量更新失败：" + e.message);
+    }
   };
   reader.readAsText(file);
 }
 
-// 下载模板
+// 下载物流模板
 function downloadLogisticsTemplate() {
-  const csv = "NMS123456,SF1234567890\nNMS65432,YT7654321098";
+  const csv = "NMS123456,SF1234567890\nNMS654321,YT7654321098";
   const blob = new Blob([csv], { type: "text/plain;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "物流批量模板.txt";
   a.click();
+  URL.revokeObjectURL(a.href);
 }
 
-// 商品功能（保留本地）
-function uploadGoods() {}
-function exportSampleTemplate() {}
-function viewCurrentGoods() {}
+// HTML转义
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]||m));
+}
+
+// 页面加载时从云端同步商品
+async function syncGoodsFromCloud() {
+  try {
+    const res = await fetch(`${API}/goods/get`, { headers: { token: TOKEN } });
+    if (res.ok) {
+      const j = await res.json();
+      if (j.code === 0 && j.goods) {
+        const cloudGoods = JSON.parse(atob(j.goods));
+        if (cloudGoods && cloudGoods.length > 0) {
+          localStorage.setItem(STORAGE_GOODS, JSON.stringify(cloudGoods));
+        }
+      }
+    }
+  } catch(e) {
+    console.log("云端同步失败，使用本地商品");
+  }
+}
+
+// 初始化
+syncGoodsFromCloud();
 </script>
 </body>
 </html>
