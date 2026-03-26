@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>南漫社 · 达人寄样系统</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, 'Segoe UI', '微软雅黑', sans-serif;
+  }
+  body {
+    background: #f5f7fb;
+    padding: 12px;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #ffffff;
+    border-radius: 20px;
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+  .title-main {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #d81e06;
+    margin: 8px 0 12px;
+  }
+  .goods-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .goods-item {
+    background: #fff;
+    border-radius: 16px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid #f0f0f0;
+  }
+  .goods-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #2c3e4f;
+    flex: 1;
+  }
+  .add-btn {
+    background: #d81e06;
+    border: none;
+    color: white;
+    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 30px;
+    cursor: pointer;
+  }
+  .cart-box {
+    background: #fef6e0;
+    border-radius: 20px;
+    padding: 14px;
+    margin: 12px 0;
+  }
+  .cart-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed #ffe0a3;
+    font-size: 13px;
+  }
+  .num {
+    color: #d81e06;
+    font-weight: 700;
+  }
+  input, .parse-btn {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+    margin-bottom: 10px;
+  }
+  .parse-btn {
+    background: #1677ff;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  .submit-btn {
+    background: #07c160;
+    color: white;
+    font-weight: 700;
+    border: none;
+    border-radius: 40px;
+    padding: 14px;
+    width: 100%;
+    cursor: pointer;
+  }
+  .order-result {
+    background: #eef9f0;
+    border-radius: 20px;
+    padding: 16px;
+    display: none;
+    border-left: 5px solid #07c160;
+  }
+  .history-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+    position: relative;
+  }
+  .delete-order-btn {
+    background: #ff4d4f;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .order-logistics {
+    font-size: 12px;
+    color: #07c160;
+    margin-top: 6px;
+  }
+  .flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .query-btn {
+    background: #1677ff;
+    border: none;
+    padding: 10px;
+    border-radius: 30px;
+    color: white;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 6px;
+  }
+  .query-input {
+    margin-bottom: 6px;
+  }
+  @media (max-width: 640px) {
+    .goods-grid { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<h1 class="title-main">🎁 南漫社达人寄样下单</h1>
+<div class="card">
+  <div style="font-weight:600; margin-bottom:10px;">✨ 精选寄样商品</div>
+  <div class="goods-grid" id="goodsList"></div>
+  <div style="font-size:12px; color:#888; margin-top:8px;">👆 点击「加购」可多选</div>
+</div>
+<div class="cart-box">
+  <div style="font-weight:700; margin-bottom:10px;">🛒 已选商品</div>
+  <div id="cartList"></div>
+</div>
+<div class="card">
+  <div style="font-weight:700; margin-bottom:12px;">📮 收货信息</div>
+  <input type="text" id="addressRaw" placeholder="粘贴地址+姓名+电话 一键解析">
+  <button class="parse-btn" onclick="parseAddress()">✨ 智能解析</button>
+  <input type="text" id="name" placeholder="收件人姓名">
+  <input type="text" id="phone" placeholder="手机号码">
+  <input type="text" id="address" placeholder="详细地址">
+  <button class="submit-btn" onclick="submitOrder()">✅ 提交寄样订单</button>
+</div>
+<div class="card">
+  <div class="flex-between">
+    <div style="font-weight:700;">📋 我的历史订单</div>
+    <span style="font-size:12px; color:#999;">点击删除可取消订单</span>
+  </div>
+  <div id="historyList"></div>
+</div>
+<div class="order-result" id="orderResult">
+  <p style="color:#07c160;font-weight:700;">✅ 提交成功！商家将尽快发货</p>
+  <p>📦 订单号：<span id="orderNo" style="color:#d81e06;font-weight:bold;"></span></p>
+  <p>🕒 下单时间：<span id="createTime"></span></p>
+  <p>🎁 商品：<span id="orderGoods"></span></p>
+</div>
+<div class="card">
+  <div style="font-weight:700; margin-bottom:12px;">🔎 订单物流跟踪</div>
+  <input class="query-input" id="queryOrderNo" placeholder="输入订单号查询">
+  <button class="query-btn" onclick="queryOrder()">📬 查询订单 / 物流单号</button>
+  <div id="queryResult" style="margin-top:12px; font-size:13px;"></div>
+</div>
+<script>
+  const STORAGE_GOODS = "goodsData";
+  const STORAGE_ORDERS = "nmsOrders";
+  const STORAGE_USER = "userInfo";
+  let cart = [];
+
+  function loadGoods() {
+    let goods = JSON.parse(localStorage.getItem(STORAGE_GOODS) || "[]");
+    if (goods.length === 0) {
+      goods = [
+        { code: "6941899614135", name: "红岁驰春 迷你吧唧1对" },
+        { code: "6941899614234", name: "南漫社限定亚克力立牌" },
+        { code: "6941899614331", name: "星尘回忆 色纸套装" }
+      ];
+      localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
+    }
+    const container = document.getElementById("goodsList");
+    container.innerHTML = goods.map(item => `
+      <div class="goods-item">
+        <div class="goods-name">${escapeHtml(item.name)}</div>
+        <button class="add-btn" onclick="addCart('${escapeHtml(item.name)}','${item.code}')">➕ 加购</button>
+      </div>
+    `).join("");
+  }
+
+  function addCart(name, code) {
+    const exist = cart.find(i => i.name === name);
+    if (exist) exist.num++;
+    else cart.push({ name, code, num: 1 });
+    renderCart();
+  }
+
+  function renderCart() {
+    const cartDiv = document.getElementById("cartList");
+    if (cart.length === 0) {
+      cartDiv.innerHTML = "<div style='color:#b97f10; padding:8px 0;'>✨ 暂未选择商品</div>";
+      return;
+    }
+    cartDiv.innerHTML = cart.map(item => `
+      <div class="cart-item">
+        <span>${escapeHtml(item.name)}</span>
+        <span>× <span class="num">${item.num}</span></span>
+      </div>
+    `).join("");
+  }
+
+  function parseAddress() {
+    const raw = document.getElementById("addressRaw").value.trim();
+    if (!raw) return alert("请粘贴内容");
+    const phone = raw.match(/1[3-9]\d{9}/)?.[0] || "";
+    const name = raw.match(/[\u4e00-\u9fa5]{2,6}/)?.[0] || "";
+    const address = raw.replace(name, "").replace(phone, "").trim();
+    document.getElementById("name").value = name;
+    document.getElementById("phone").value = phone;
+    document.getElementById("address").value = address;
+    alert("解析完成，请核对信息");
+  }
+
+  function createOrderNo() {
+    return "NMS" + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase();
+  }
+
+  function getOrders() {
+    return JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
+  }
+
+  function saveOrders(orders) {
+    localStorage.setItem(STORAGE_ORDERS, JSON.stringify(orders));
+    window.dispatchEvent(new Event("orderUpdate"));
+  }
+
+  function submitOrder() {
+    const name = document.getElementById("name").value.trim();
+    const phone = document.getElementById("phone").value.trim();
+    const address = document.getElementById("address").value.trim();
+    if (!name || !phone || !address) return alert("请完善收货信息");
+    if (!/^1[3-9]\d{9}$/.test(phone)) return alert("手机号格式不正确");
+    if (cart.length === 0) return alert("请选择商品");
+
+    localStorage.setItem(STORAGE_USER, JSON.stringify({ name, phone, address }));
+    const orderNo = createOrderNo();
+    const now = new Date();
+    const createTime = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+    
+    const newOrder = {
+      orderNo, name, phone, address,
+      goods: [...cart], createTime, logistics: "", timestamp: now.getTime()
+    };
+
+    const orders = getOrders();
+    orders.unshift(newOrder);
+    saveOrders(orders);
+
+    document.getElementById("orderResult").style.display = "block";
+    document.getElementById("orderNo").innerText = orderNo;
+    document.getElementById("createTime").innerText = createTime;
+    document.getElementById("orderGoods").innerText = cart.map(i => `${i.name}×${i.num}`).join("，");
+    cart = []; renderCart(); showHistory();
+    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 100);
+    alert(`订单提交成功！\n订单号：${orderNo}`);
+  }
+
+  function deleteOrder(orderNo) {
+    if (!confirm(`确定要删除订单 ${orderNo} 吗？删除后不可恢复，商家后台也将同步删除。`)) return;
+    let orders = getOrders();
+    const newOrders = orders.filter(o => o.orderNo !== orderNo);
+    saveOrders(newOrders);
+    showHistory();
+    const queryInput = document.getElementById("queryOrderNo").value;
+    if (queryInput === orderNo) {
+      document.getElementById("queryResult").innerHTML = "<span style='color:#ff4d4f;'>该订单已被删除</span>";
+    }
+    alert(`订单 ${orderNo} 已删除`);
+  }
+
+  function showHistory() {
+    const orders = getOrders();
+    const historyDiv = document.getElementById("historyList");
+    if (orders.length === 0) {
+      historyDiv.innerHTML = "<div style='color:#aaa; padding:12px 0;'>暂无订单记录</div>";
+      return;
+    }
+    historyDiv.innerHTML = orders.slice(0, 10).map(o => `
+      <div class="history-item">
+        <div class="flex-between">
+          <strong>${o.orderNo}</strong>
+          <span style="color:#888; font-size:12px;">${o.createTime}</span>
+        </div>
+        <div style="margin-top:4px;">🎁 ${(o.goods || []).map(g => `${g.name}×${g.num}`).join("、")}</div>
+        <div class="order-logistics">🚚 物流：${o.logistics || "待发货"}</div>
+        <button class="delete-order-btn" onclick="deleteOrder('${o.orderNo}')">🗑️ 删除订单</button>
+      </div>
+    `).join("");
+  }
+
+  function queryOrder() {
+    const orderNo = document.getElementById("queryOrderNo").value.trim();
+    const resultDiv = document.getElementById("queryResult");
+    if (!orderNo) {
+      resultDiv.innerHTML = "<span style='color:#e67e22;'>请输入订单号</span>";
+      return;
+    }
+    const order = getOrders().find(o => o.orderNo === orderNo);
+    if (!order) {
+      resultDiv.innerHTML = "<span style='color:#d81e06;'>❌ 未找到订单，请核对订单号</span>";
+      return;
+    }
+    resultDiv.innerHTML = `
+      <div style="background:#f8f9fc; border-radius:16px; padding:12px;">
+        <div><strong>✅ 订单号：</strong>${order.orderNo}</div>
+        <div><strong>📅 下单时间：</strong>${order.createTime}</div>
+        <div><strong>🎁 商品：</strong>${order.goods.map(g => `${g.name}×${g.num}`).join("、")}</div>
+        <div><strong>📦 物流信息：</strong>${order.logistics || "待发货"}</div>
+        <div><strong>👤 收件人：</strong>${order.name} ${order.phone}</div>
+        <div><strong>📍 地址：</strong>${order.address}</div>
+      </div>
+    `;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]||m));
+  }
+
+  function loadUserCache() {
+    const user = JSON.parse(localStorage.getItem(STORAGE_USER) || "{}");
+    if (user.name) document.getElementById("name").value = user.name;
+    if (user.phone) document.getElementById("phone").value = user.phone;
+    if (user.address) document.getElementById("address").value = user.address;
+  }
+
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_ORDERS || e.key === STORAGE_GOODS) {
+      showHistory(); loadGoods();
+    }
+  });
+
+  window.onload = () => {
+    loadGoods(); renderCart(); showHistory(); loadUserCache();
+  };
+</script>
+</body>
+</html>
