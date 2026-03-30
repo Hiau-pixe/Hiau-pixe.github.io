@@ -187,78 +187,69 @@
 </head>
 <body>
 <h1>🏪 南漫社 · 商家管理后台（云端同步）</h1>
-
 <!-- 商品管理 -->
 <div class="admin-card">
-  <div class="card-title">📦 商品库管理 <button class="refresh-btn" onclick="loadGoods()">🔄 刷新</button></div>
+  <div class="card-title">📦 商品库管理 <button class="refresh-btn" onclick="window.loadGoods()">🔄 刷新</button></div>
   <div class="flex-row">
     <input type="file" id="fileInput" accept=".csv,.txt">
-    <button class="btn" onclick="uploadGoods()">📤 上传并覆盖商品</button>
-    <button class="btn btn-blue" onclick="exportSampleTemplate()">📎 下载商品模板</button>
-    <button class="btn btn-outline" onclick="viewCurrentGoods()">👁️ 查看商品列表</button>
+    <button class="btn" onclick="window.uploadGoods()">📤 上传并覆盖商品</button>
+    <button class="btn btn-blue" onclick="window.exportSampleTemplate()">📎 下载商品模板</button>
+    <button class="btn btn-outline" onclick="window.viewCurrentGoods()">👁️ 查看商品列表</button>
   </div>
   <div id="goodsPreview" style="font-size:13px; color:#2c6e2c;"></div>
 </div>
-
 <!-- 订单管理 -->
 <div class="admin-card">
   <div class="card-title">📋 订单管理中心</div>
-
   <div class="search-box">
     <div class="flex-row" style="margin-bottom:0;">
       <input type="text" id="searchOrderNo" class="search-input" placeholder="🔍 按订单号精确查询">
-      <button class="btn btn-blue" onclick="searchByOrderNo()">查询订单</button>
-      <button class="btn btn-outline" onclick="clearSearch()">清除筛选</button>
+      <button class="btn btn-blue" onclick="window.searchByOrderNo()">查询订单</button>
+      <button class="btn btn-outline" onclick="window.clearSearch()">清除筛选</button>
     </div>
   </div>
-
   <div class="flex-row">
     <input type="date" id="startDate" placeholder="开始日期">
     <input type="date" id="endDate" placeholder="结束日期">
-    <button class="btn btn-blue" onclick="loadOrders()">🔍 日期筛选</button>
-    <button class="btn btn-red" onclick="exportFilteredOrders()">📥 导出筛选结果</button>
+    <button class="btn btn-blue" onclick="window.loadOrders()">🔍 日期筛选</button>
+    <button class="btn btn-red" onclick="window.exportFilteredOrders()">📥 导出筛选结果</button>
     <span class="stats-badge" id="orderCountBadge">订单数: --</span>
   </div>
-
   <div class="batch-area">
     <div style="font-weight:600; margin-bottom:10px;">📦 批量上传物流单号</div>
     <div class="flex-row">
       <input type="file" id="logisticsFile" accept=".csv,.txt">
-      <button class="btn btn-blue" onclick="batchUploadLogistics()">🚚 批量更新物流</button>
-      <button class="btn btn-outline" onclick="downloadLogisticsTemplate()">📎 下载物流模板</button>
+      <button class="btn btn-blue" onclick="window.batchUploadLogistics()">🚚 批量更新物流</button>
+      <button class="btn btn-outline" onclick="window.downloadLogisticsTemplate()">📎 下载物流模板</button>
     </div>
     <div style="font-size:12px; color:#666; margin-top:8px;">
       💡 模板格式：A列订单号，B列物流单号（CSV格式，无需表头）
     </div>
   </div>
-
   <div id="orderList" class="order-list-container">
     <div class="empty-orders">加载订单中...</div>
   </div>
 </div>
-
 <script>
   // ==================== SUPABASE 配置 ====================
   const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';   // 替换为你的 Supabase URL
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                // 替换为你的 anon key
-
-  // 确保 SDK 已加载，避免重复声明
-  let supabase;
+  // 修复：全局已挂载supabase，直接重新赋值，不重复声明let supabase
   if (typeof window.supabase !== 'undefined') {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   } else {
     alert('Supabase SDK 加载失败，请检查网络后刷新页面');
     throw new Error('Supabase SDK not loaded');
   }
-
   let currentSearchNo = "";
   let currentStartDate = "";
   let currentEndDate = "";
 
+  // 所有函数挂载到window，解决onclick未定义问题
   // ========== 商品管理 ==========
-  async function loadGoods() {
+  window.loadGoods = async function() {
     try {
-      const { data, error } = await supabase.from('goods').select('*').order('name');
+      const { data, error } = await window.supabase.from('goods').select('*').order('name');
       if (error) throw error;
       const count = data ? data.length : 0;
       const previewDiv = document.getElementById("goodsPreview");
@@ -274,7 +265,7 @@
     }
   }
 
-  async function uploadGoods() {
+  window.uploadGoods = async function() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("请选择文件");
     const reader = new FileReader();
@@ -298,12 +289,12 @@
       });
       if (goods.length === 0) return alert("未识别到有效商品数据，格式：编码,商品名称");
       try {
-        const { error: delError } = await supabase.from('goods').delete().neq('code', '');
+        const { error: delError } = await window.supabase.from('goods').delete().neq('code', '');
         if (delError) throw delError;
-        const { error: insertError } = await supabase.from('goods').insert(goods);
+        const { error: insertError } = await window.supabase.from('goods').insert(goods);
         if (insertError) throw insertError;
         alert(`✅ 上传成功！共 ${goods.length} 件商品`);
-        loadGoods();
+        window.loadGoods();
       } catch (err) {
         console.error("上传商品失败:", err);
         alert("上传失败");
@@ -312,9 +303,9 @@
     reader.readAsArrayBuffer(file);
   }
 
-  async function viewCurrentGoods() {
+  window.viewCurrentGoods = async function() {
     try {
-      const { data, error } = await supabase.from('goods').select('*');
+      const { data, error } = await window.supabase.from('goods').select('*');
       if (error) throw error;
       if (!data || !data.length) return alert("暂无商品");
       alert(data.map((g,i) => `${i+1}. ${g.name} (${g.code})`).join("\n"));
@@ -323,14 +314,14 @@
     }
   }
 
-  function exportSampleTemplate() {
+  window.exportSampleTemplate = function() {
     const csv = "编码,商品名称\n6941899614135,红岁驰春 迷你吧唧1对\n6941899614234,南漫社限定亚克力立牌";
-    downloadCSV(csv, "商品上传模板.csv");
+    window.downloadCSV(csv, "商品上传模板.csv");
   }
 
   // ========== 订单管理 ==========
-  async function loadOrders() {
-    let query = supabase.from('orders').select('*');
+  window.loadOrders = async function() {
+    let query = window.supabase.from('orders').select('*');
     if (currentSearchNo) {
       query = query.eq('orderNo', currentSearchNo);
     } else {
@@ -352,14 +343,14 @@
       const { data, error } = await query;
       if (error) throw error;
       document.getElementById("orderCountBadge").innerHTML = `📊 订单数: ${data.length}`;
-      renderOrderList(data);
+      window.renderOrderList(data);
     } catch (err) {
       console.error("加载订单失败:", err);
       document.getElementById("orderList").innerHTML = "<div class='empty-orders'>加载失败，请检查Supabase配置</div>";
     }
   }
 
-  function renderOrderList(orders) {
+  window.renderOrderList = function(orders) {
     const container = document.getElementById("orderList");
     if (!orders.length) {
       container.innerHTML = `<div class="empty-orders">📭 暂无订单</div>`;
@@ -367,22 +358,22 @@
     }
     container.innerHTML = orders.map(order => {
       const goodsHtml = (order.goods || []).map(g => 
-        `<span style="background:#f2f4f8; padding:2px 10px; border-radius:20px; margin-right:6px;">${escapeHtml(g.name)} ×${g.num}</span>`
+        `<span style="background:#f2f4f8; padding:2px 10px; border-radius:20px; margin-right:6px;">${window.escapeHtml(g.name)} ×${g.num}</span>`
       ).join("");
       const codesHtml = (order.goods || []).map(g => 
-        `<span style="background:#eef3ff; padding:2px 8px; border-radius:20px; font-size:12px;">${escapeHtml(g.code)}</span>`
+        `<span style="background:#eef3ff; padding:2px 8px; border-radius:20px; font-size:12px;">${window.escapeHtml(g.code)}</span>`
       ).join(", ");
       const hasLogistics = order.logistics && order.logistics.trim();
       return `
         <div class="order-card" data-order-no="${order.orderNo}">
           <div class="order-header">
-            <div><span class="order-no">🧾 ${escapeHtml(order.orderNo)}</span></div>
-            <div style="color:#6c7a8a;">🕒 ${escapeHtml(order.createTime || '未知')}</div>
+            <div><span class="order-no">🧾 ${window.escapeHtml(order.orderNo)}</span></div>
+            <div style="color:#6c7a8a;">🕒 ${window.escapeHtml(order.createTime || '未知')}</div>
           </div>
           <div class="info-grid">
-            <div>👤 ${escapeHtml(order.name)}</div>
-            <div>📞 ${escapeHtml(order.phone)}</div>
-            <div>📍 ${escapeHtml(order.address)}</div>
+            <div>👤 ${window.escapeHtml(order.name)}</div>
+            <div>📞 ${window.escapeHtml(order.phone)}</div>
+            <div>📍 ${window.escapeHtml(order.address)}</div>
           </div>
           <div class="goods-detail">
             <div style="font-weight:500; margin-bottom:6px;">🎁 商品明细：</div>
@@ -391,57 +382,57 @@
           </div>
           <div class="logistics-area">
             <div>${hasLogistics ? '<span class="badge-shipped">📮 已发货</span>' : '<span style="background:#ffefe5; padding:2px 12px; border-radius:30px;">⏳ 待发货</span>'}</div>
-            <input type="text" id="log_${order.orderNo}" class="logistics-input" placeholder="输入物流单号" value="${escapeHtml(order.logistics || '')}">
-            <button class="btn btn-blue btn-sm" style="padding:6px 14px;" onclick="updateLogistics('${order.orderNo}')">💾 保存</button>
-            <button class="btn btn-red btn-sm" style="padding:6px 14px; background:#ff4d4f;" onclick="deleteOrder('${order.orderNo}')">🗑️ 删除订单</button>
+            <input type="text" id="log_${order.orderNo}" class="logistics-input" placeholder="输入物流单号" value="${window.escapeHtml(order.logistics || '')}">
+            <button class="btn btn-blue btn-sm" style="padding:6px 14px;" onclick="window.updateLogistics('${order.orderNo}')">💾 保存</button>
+            <button class="btn btn-red btn-sm" style="padding:6px 14px; background:#ff4d4f;" onclick="window.deleteOrder('${order.orderNo}')">🗑️ 删除订单</button>
           </div>
         </div>
       `;
     }).join("");
   }
 
-  async function updateLogistics(orderNo) {
+  window.updateLogistics = async function(orderNo) {
     const input = document.getElementById(`log_${orderNo}`);
     const logistics = input.value.trim();
     if (!logistics) return alert("请输入物流单号");
     try {
-      const { error } = await supabase.from('orders').update({ logistics }).eq('orderNo', orderNo);
+      const { error } = await window.supabase.from('orders').update({ logistics }).eq('orderNo', orderNo);
       if (error) throw error;
       alert(`✅ 订单 ${orderNo} 物流已更新`);
-      loadOrders();
+      window.loadOrders();
     } catch (err) {
       alert("更新失败");
     }
   }
 
-  async function deleteOrder(orderNo) {
+  window.deleteOrder = async function(orderNo) {
     if (!confirm(`确定删除订单 ${orderNo} 吗？用户端也将同步删除。`)) return;
     try {
-      const { error } = await supabase.from('orders').delete().eq('orderNo', orderNo);
+      const { error } = await window.supabase.from('orders').delete().eq('orderNo', orderNo);
       if (error) throw error;
       alert(`✅ 订单 ${orderNo} 已删除`);
-      loadOrders();
+      window.loadOrders();
     } catch (err) {
       alert("删除失败");
     }
   }
 
-  function searchByOrderNo() {
+  window.searchByOrderNo = function() {
     const searchNo = document.getElementById("searchOrderNo").value.trim();
     if (!searchNo) { alert("请输入订单号"); return; }
     currentSearchNo = searchNo;
-    loadOrders();
+    window.loadOrders();
   }
 
-  function clearSearch() {
+  window.clearSearch = function() {
     currentSearchNo = "";
     document.getElementById("searchOrderNo").value = "";
     document.getElementById("startDate").value = "";
     document.getElementById("endDate").value = "";
-    loadOrders();
+    window.loadOrders();
   }
 
-  async function batchUploadLogistics() {
+  window.batchUploadLogistics = async function() {
     const file = document.getElementById("logisticsFile").files[0];
     if (!file) return alert("请选择物流单号文件");
     const reader = new FileReader();
@@ -460,24 +451,24 @@
         if (orderNo && logistics) {
           orderNo = orderNo.replace(/^["']|["']$/g, '').trim();
           logistics = logistics.replace(/^["']|["']$/g, '').trim();
-          const { error } = await supabase.from('orders').update({ logistics }).eq('orderNo', orderNo);
+          const { error } = await window.supabase.from('orders').update({ logistics }).eq('orderNo', orderNo);
           if (error) notFoundCount++;
           else successCount++;
         }
       }
       alert(`✅ 批量更新完成！成功：${successCount} 笔，未找到订单：${notFoundCount} 笔`);
-      loadOrders();
+      window.loadOrders();
     };
     reader.readAsArrayBuffer(file);
   }
 
-  function downloadLogisticsTemplate() {
+  window.downloadLogisticsTemplate = function() {
     const csv = "订单号,物流单号\nNMS1735200000000,SF1234567890\nNMS1735200000001,YT9876543210";
-    downloadCSV(csv, "物流批量上传模板.csv");
+    window.downloadCSV(csv, "物流批量上传模板.csv");
   }
 
-  async function exportFilteredOrders() {
-    let query = supabase.from('orders').select('*');
+  window.exportFilteredOrders = async function() {
+    let query = window.supabase.from('orders').select('*');
     if (currentSearchNo) {
       query = query.eq('orderNo', currentSearchNo);
     } else {
@@ -519,13 +510,13 @@
       const startLabel = document.getElementById("startDate").value || "全部";
       const endLabel = document.getElementById("endDate").value || "全部";
       const suffix = currentSearchNo ? `订单_${currentSearchNo}` : `${startLabel}_至_${endLabel}`;
-      downloadCSV(csv, `南漫社订单_${suffix}.csv`);
+      window.downloadCSV(csv, `南漫社订单_${suffix}.csv`);
     } catch (err) {
       alert("导出失败");
     }
   }
 
-  function downloadCSV(content, filename) {
+  window.downloadCSV = function(content, filename) {
     const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -534,7 +525,7 @@
     URL.revokeObjectURL(link.href);
   }
 
-  function escapeHtml(str) {
+  window.escapeHtml = function(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {
       if (m === '&') return '&amp;';
@@ -545,22 +536,24 @@
   }
 
   // 实时监听
-  function subscribeOrders() {
-    supabase.channel('admin-orders-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => loadOrders())
-      .subscribe();
-  }
-  function subscribeGoods() {
-    supabase.channel('admin-goods-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'goods' }, () => loadGoods())
+  window.subscribeOrders = function() {
+    window.supabase.channel('admin-orders-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => window.loadOrders())
       .subscribe();
   }
 
+  window.subscribeGoods = function() {
+    window.supabase.channel('admin-goods-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goods' }, () => window.loadGoods())
+      .subscribe();
+  }
+
+  // 页面加载初始化
   window.onload = async () => {
-    await loadGoods();
-    await loadOrders();
-    subscribeOrders();
-    subscribeGoods();
+    await window.loadGoods();
+    await window.loadOrders();
+    window.subscribeOrders();
+    window.subscribeGoods();
   };
 </script>
 </body>
