@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>南漫社 · 商家后台管理（云端同步）</title>
-<!-- 使用 Skypack CDN 加载 Supabase JS SDK，解决连接超时问题 -->
-<script src="https://cdn.skypack.dev/@supabase/supabase-js@2"></script>
+<!-- 使用 UMD 格式的 Supabase SDK -->
+<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   * {
     margin: 0;
@@ -203,7 +203,7 @@
 <!-- 订单管理 -->
 <div class="admin-card">
   <div class="card-title">📋 订单管理中心</div>
-  
+
   <div class="search-box">
     <div class="flex-row" style="margin-bottom:0;">
       <input type="text" id="searchOrderNo" class="search-input" placeholder="🔍 按订单号精确查询">
@@ -211,7 +211,7 @@
       <button class="btn btn-outline" onclick="clearSearch()">清除筛选</button>
     </div>
   </div>
-  
+
   <div class="flex-row">
     <input type="date" id="startDate" placeholder="开始日期">
     <input type="date" id="endDate" placeholder="结束日期">
@@ -219,7 +219,7 @@
     <button class="btn btn-red" onclick="exportFilteredOrders()">📥 导出筛选结果</button>
     <span class="stats-badge" id="orderCountBadge">订单数: --</span>
   </div>
-  
+
   <div class="batch-area">
     <div style="font-weight:600; margin-bottom:10px;">📦 批量上传物流单号</div>
     <div class="flex-row">
@@ -231,7 +231,7 @@
       💡 模板格式：A列订单号，B列物流单号（CSV格式，无需表头）
     </div>
   </div>
-  
+
   <div id="orderList" class="order-list-container">
     <div class="empty-orders">加载订单中...</div>
   </div>
@@ -239,15 +239,20 @@
 
 <script>
   // ==================== SUPABASE 配置 ====================
-  // 请替换成你自己的 Supabase URL 和 anon key（必须与用户端一致）
-  const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';
+  const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';   // 替换为你的 Supabase URL
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                // 替换为你的 anon key
+
+  // 确保 SDK 已加载
+  if (typeof window.supabase === 'undefined') {
+    alert('Supabase SDK 加载失败，请检查网络后刷新页面');
+    throw new Error('Supabase SDK not loaded');
+  }
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  
+
   let currentSearchNo = "";
   let currentStartDate = "";
   let currentEndDate = "";
-  
+
   // 商品管理
   async function loadGoods() {
     try {
@@ -266,7 +271,7 @@
       document.getElementById("goodsPreview").innerHTML = "❌ 加载失败，请检查Supabase配置";
     }
   }
-  
+
   async function uploadGoods() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("请选择文件");
@@ -304,7 +309,7 @@
     };
     reader.readAsArrayBuffer(file);
   }
-  
+
   async function viewCurrentGoods() {
     try {
       const { data, error } = await supabase.from('goods').select('*');
@@ -315,12 +320,12 @@
       alert("获取商品失败");
     }
   }
-  
+
   function exportSampleTemplate() {
     const csv = "编码,商品名称\n6941899614135,红岁驰春 迷你吧唧1对\n6941899614234,南漫社限定亚克力立牌";
     downloadCSV(csv, "商品上传模板.csv");
   }
-  
+
   // 订单管理
   async function loadOrders() {
     let query = supabase.from('orders').select('*');
@@ -351,7 +356,7 @@
       document.getElementById("orderList").innerHTML = "<div class='empty-orders'>加载失败，请检查Supabase配置</div>";
     }
   }
-  
+
   function renderOrderList(orders) {
     const container = document.getElementById("orderList");
     if (!orders.length) {
@@ -392,7 +397,7 @@
       `;
     }).join("");
   }
-  
+
   async function updateLogistics(orderNo) {
     const input = document.getElementById(`log_${orderNo}`);
     const logistics = input.value.trim();
@@ -406,7 +411,7 @@
       alert("更新失败");
     }
   }
-  
+
   async function deleteOrder(orderNo) {
     if (!confirm(`确定删除订单 ${orderNo} 吗？用户端也将同步删除。`)) return;
     try {
@@ -418,14 +423,14 @@
       alert("删除失败");
     }
   }
-  
+
   function searchByOrderNo() {
     const searchNo = document.getElementById("searchOrderNo").value.trim();
     if (!searchNo) { alert("请输入订单号"); return; }
     currentSearchNo = searchNo;
     loadOrders();
   }
-  
+
   function clearSearch() {
     currentSearchNo = "";
     document.getElementById("searchOrderNo").value = "";
@@ -433,7 +438,7 @@
     document.getElementById("endDate").value = "";
     loadOrders();
   }
-  
+
   async function batchUploadLogistics() {
     const file = document.getElementById("logisticsFile").files[0];
     if (!file) return alert("请选择物流单号文件");
@@ -463,12 +468,12 @@
     };
     reader.readAsArrayBuffer(file);
   }
-  
+
   function downloadLogisticsTemplate() {
     const csv = "订单号,物流单号\nNMS1735200000000,SF1234567890\nNMS1735200000001,YT9876543210";
     downloadCSV(csv, "物流批量上传模板.csv");
   }
-  
+
   async function exportFilteredOrders() {
     let query = supabase.from('orders').select('*');
     if (currentSearchNo) {
@@ -517,7 +522,7 @@
       alert("导出失败");
     }
   }
-  
+
   function downloadCSV(content, filename) {
     const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8" });
     const link = document.createElement("a");
@@ -526,7 +531,7 @@
     link.click();
     URL.revokeObjectURL(link.href);
   }
-  
+
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {
@@ -536,7 +541,7 @@
       return m;
     });
   }
-  
+
   // 实时监听
   function subscribeOrders() {
     supabase.channel('admin-orders-changes')
@@ -548,7 +553,7 @@
       .on('postgres_changes', { event: '*', schema: 'public', table: 'goods' }, () => loadGoods())
       .subscribe();
   }
-  
+
   window.onload = async () => {
     await loadGoods();
     await loadOrders();
