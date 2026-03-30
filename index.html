@@ -3,11 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>南漫社 · 达人寄样系统（云端同步版）</title>
-<!-- 使用 Skypack CDN 加载 Supabase JS SDK，解决连接超时问题 -->
-<script src="https://cdn.skypack.dev/@supabase/supabase-js@2"></script>
+<title>南漫社 · 达人寄样系统（云端同步）</title>
+<!-- 使用 UMD 格式的 Supabase SDK，直接暴露全局 window.supabase -->
+<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
-  /* 样式保持不变，省略... 可复制原样式 */
   * {
     margin: 0;
     padding: 0;
@@ -227,12 +226,18 @@
   // 请替换成你自己的 Supabase URL 和 anon key
   const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';     // 替换为你的 Supabase URL
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                  // 替换为你的 anon key
+
+  // 确保 SDK 已加载，否则给出提示
+  if (typeof window.supabase === 'undefined') {
+    alert('Supabase SDK 加载失败，请检查网络后刷新页面');
+    throw new Error('Supabase SDK not loaded');
+  }
   const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  
+
   // ==================== 全局变量 ====================
   let cart = [];
   let currentUserPhone = "";
-  
+
   // ==================== 商品相关 ====================
   async function loadGoodsFromDB() {
     const container = document.getElementById("goodsList");
@@ -263,7 +268,7 @@
       container.innerHTML = '<div style="color:red;">加载商品失败，请检查Supabase配置</div>';
     }
   }
-  
+
   function renderGoodsList(goods) {
     const container = document.getElementById("goodsList");
     if (!goods.length) {
@@ -277,14 +282,14 @@
       </div>
     `).join("");
   }
-  
+
   function addCart(name, code) {
     const exist = cart.find(i => i.name === name);
     if (exist) exist.num++;
     else cart.push({ name, code, num: 1 });
     renderCart();
   }
-  
+
   function renderCart() {
     const cartDiv = document.getElementById("cartList");
     if (cart.length === 0) {
@@ -298,7 +303,7 @@
       </div>
     `).join("");
   }
-  
+
   // 地址解析
   function parseAddress() {
     const raw = document.getElementById("addressRaw").value.trim();
@@ -315,12 +320,12 @@
       loadMyOrders();
     }
   }
-  
+
   // 生成订单号
   function createOrderNo() {
     return "NMS" + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase();
   }
-  
+
   // 提交订单
   async function submitOrder() {
     const name = document.getElementById("name").value.trim();
@@ -329,14 +334,14 @@
     if (!name || !phone || !address) return alert("请完善收货信息");
     if (!/^1[3-9]\d{9}$/.test(phone)) return alert("手机号格式不正确");
     if (cart.length === 0) return alert("请选择商品");
-    
+
     localStorage.setItem("userInfo", JSON.stringify({ name, phone, address }));
     currentUserPhone = phone;
-    
+
     const orderNo = createOrderNo();
     const now = new Date();
     const createTime = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-    
+
     const newOrder = {
       orderNo,
       name,
@@ -347,16 +352,16 @@
       logistics: "",
       timestamp: now.getTime()
     };
-    
+
     try {
       const { error } = await supabase.from('orders').insert([newOrder]);
       if (error) throw error;
-      
+
       document.getElementById("orderResult").style.display = "block";
       document.getElementById("orderNo").innerText = orderNo;
       document.getElementById("createTime").innerText = createTime;
       document.getElementById("orderGoods").innerText = cart.map(i => `${i.name}×${i.num}`).join("，");
-      
+
       cart = [];
       renderCart();
       await loadMyOrders();
@@ -367,7 +372,7 @@
       alert("提交失败，请检查网络或Supabase配置");
     }
   }
-  
+
   // 加载我的订单
   async function loadMyOrders() {
     const phone = document.getElementById("phone").value.trim();
@@ -389,7 +394,7 @@
       document.getElementById("historyList").innerHTML = "<div style='color:red;'>加载失败</div>";
     }
   }
-  
+
   function renderHistoryOrders(orders) {
     const historyDiv = document.getElementById("historyList");
     if (!orders.length) {
@@ -408,7 +413,7 @@
       </div>
     `).join("");
   }
-  
+
   async function deleteMyOrder(orderNo) {
     const currentPhone = document.getElementById("phone").value.trim();
     if (!currentPhone) {
@@ -443,7 +448,7 @@
       alert("删除失败");
     }
   }
-  
+
   async function queryOrder() {
     const orderNo = document.getElementById("queryOrderNo").value.trim();
     const resultDiv = document.getElementById("queryResult");
@@ -476,7 +481,7 @@
       resultDiv.innerHTML = "<span style='color:red;'>查询失败</span>";
     }
   }
-  
+
   // 实时监听订单变化
   function subscribeOrders() {
     supabase
@@ -488,7 +493,7 @@
       })
       .subscribe();
   }
-  
+
   function subscribeGoods() {
     supabase
       .channel('goods-changes')
@@ -497,7 +502,7 @@
       })
       .subscribe();
   }
-  
+
   function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {
@@ -507,7 +512,7 @@
       return m;
     });
   }
-  
+
   function loadUserCache() {
     const user = JSON.parse(localStorage.getItem("userInfo") || "{}");
     if (user.name) document.getElementById("name").value = user.name;
@@ -518,7 +523,7 @@
       loadMyOrders();
     }
   }
-  
+
   window.onload = async () => {
     await loadGoodsFromDB();
     renderCart();
