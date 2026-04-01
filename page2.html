@@ -3,9 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>南漫社 · 商家后台管理（云端同步）</title>
-<!-- 使用 UMD 格式的 Supabase SDK -->
-<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<title>南漫社 · 商家后台管理</title>
 <style>
   * {
     margin: 0;
@@ -168,16 +166,6 @@
     padding: 4px 12px;
     font-size: 13px;
   }
-  .refresh-btn {
-    background: #2c3e50;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 30px;
-    color: white;
-    font-size: 12px;
-    cursor: pointer;
-    margin-left: 10px;
-  }
   @media (max-width: 640px) {
     body { padding: 12px; }
     .admin-card { padding: 16px; }
@@ -186,90 +174,73 @@
 </style>
 </head>
 <body>
-<h1>🏪 南漫社 · 商家管理后台（云端同步）</h1>
+<h1>🏪 南漫社 · 商家管理后台</h1>
+
 <!-- 商品管理 -->
 <div class="admin-card">
-  <div class="card-title">📦 商品库管理 <button class="refresh-btn" onclick="window.loadGoods()">🔄 刷新</button></div>
+  <div class="card-title">📦 商品库管理</div>
   <div class="flex-row">
     <input type="file" id="fileInput" accept=".csv,.txt">
-    <button class="btn" onclick="window.uploadGoods()">📤 上传并覆盖商品</button>
-    <button class="btn btn-blue" onclick="window.exportSampleTemplate()">📎 下载商品模板</button>
-    <button class="btn btn-outline" onclick="window.viewCurrentGoods()">👁️ 查看商品列表</button>
+    <button class="btn" onclick="uploadGoods()">📤 上传并覆盖商品</button>
+    <button class="btn btn-blue" onclick="exportSampleTemplate()">📎 下载商品模板</button>
+    <button class="btn btn-outline" onclick="viewCurrentGoods()">👁️ 查看商品列表</button>
   </div>
   <div id="goodsPreview" style="font-size:13px; color:#2c6e2c;"></div>
 </div>
+
 <!-- 订单管理 -->
 <div class="admin-card">
   <div class="card-title">📋 订单管理中心</div>
+  
+  <!-- 搜索栏 -->
   <div class="search-box">
     <div class="flex-row" style="margin-bottom:0;">
       <input type="text" id="searchOrderNo" class="search-input" placeholder="🔍 按订单号精确查询">
-      <button class="btn btn-blue" onclick="window.searchByOrderNo()">查询订单</button>
-      <button class="btn btn-outline" onclick="window.clearSearch()">清除筛选</button>
+      <button class="btn btn-blue" onclick="searchByOrderNo()">查询订单</button>
+      <button class="btn btn-outline" onclick="clearSearch()">清除筛选</button>
     </div>
   </div>
+  
+  <!-- 日期筛选 -->
   <div class="flex-row">
     <input type="date" id="startDate" placeholder="开始日期">
     <input type="date" id="endDate" placeholder="结束日期">
-    <button class="btn btn-blue" onclick="window.loadOrders()">🔍 日期筛选</button>
-    <button class="btn btn-red" onclick="window.exportFilteredOrders()">📥 导出筛选结果</button>
+    <button class="btn btn-blue" onclick="loadOrders()">🔍 日期筛选</button>
+    <button class="btn btn-red" onclick="exportFilteredOrders()">📥 导出筛选结果</button>
     <span class="stats-badge" id="orderCountBadge">订单数: --</span>
   </div>
+  
+  <!-- 批量上传物流 -->
   <div class="batch-area">
     <div style="font-weight:600; margin-bottom:10px;">📦 批量上传物流单号</div>
     <div class="flex-row">
       <input type="file" id="logisticsFile" accept=".csv,.txt">
-      <button class="btn btn-blue" onclick="window.batchUploadLogistics()">🚚 批量更新物流</button>
-      <button class="btn btn-outline" onclick="window.downloadLogisticsTemplate()">📎 下载物流模板</button>
+      <button class="btn btn-blue" onclick="batchUploadLogistics()">🚚 批量更新物流</button>
+      <button class="btn btn-outline" onclick="downloadLogisticsTemplate()">📎 下载物流模板</button>
     </div>
     <div style="font-size:12px; color:#666; margin-top:8px;">
       💡 模板格式：A列订单号，B列物流单号（CSV格式，无需表头）
     </div>
   </div>
+  
   <div id="orderList" class="order-list-container">
     <div class="empty-orders">加载订单中...</div>
   </div>
 </div>
+
 <script>
-  // ==================== SUPABASE 配置 ====================
-  const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';   // 替换为你的 Supabase URL
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                // 替换为你的 anon key
-  // 修复：全局已挂载supabase，直接重新赋值，不重复声明let supabase
-  if (typeof window.supabase !== 'undefined') {
-    window.supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } else {
-    alert('Supabase SDK 加载失败，请检查网络后刷新页面');
-    throw new Error('Supabase SDK not loaded');
-  }
-  let currentSearchNo = "";
-  let currentStartDate = "";
-  let currentEndDate = "";
-
-  // 所有函数挂载到window，解决onclick未定义问题
+  const STORAGE_GOODS = "goodsData";
+  const STORAGE_ORDERS = "nmsOrders";
+  
+  let currentSearchNo = ""; // 当前搜索的订单号
+  
   // ========== 商品管理 ==========
-  window.loadGoods = async function() {
-    try {
-      const { data, error } = await window.supabase.from('goods').select('*').order('name');
-      if (error) throw error;
-      const count = data ? data.length : 0;
-      const previewDiv = document.getElementById("goodsPreview");
-      if (count > 0) {
-        const names = data.slice(0, 3).map(g => g.name).join("、");
-        previewDiv.innerHTML = `📚 当前商品库：${count}件商品 (${names}${count>3?"…":""})`;
-      } else {
-        previewDiv.innerHTML = "⚡ 暂无商品，请上传";
-      }
-    } catch (err) {
-      console.error("加载商品失败:", err);
-      document.getElementById("goodsPreview").innerHTML = "❌ 加载失败，请检查Supabase配置";
-    }
-  }
-
-  window.uploadGoods = async function() {
+  function uploadGoods() {
     const file = document.getElementById("fileInput").files[0];
     if (!file) return alert("请选择文件");
+    
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = function(e) {
       let text = "";
       try {
         const decoder = new TextDecoder("gbk");
@@ -277,6 +248,7 @@
       } catch(e) {
         text = new TextDecoder("utf-8").decode(new Uint8Array(e.target.result));
       }
+      
       const lines = text.split(/\r?\n/).filter(l => l.trim());
       const goods = [];
       lines.forEach(line => {
@@ -287,93 +259,123 @@
           if (code && name) goods.push({ code, name });
         }
       });
+      
       if (goods.length === 0) return alert("未识别到有效商品数据，格式：编码,商品名称");
-      try {
-        const { error: delError } = await window.supabase.from('goods').delete().neq('code', '');
-        if (delError) throw delError;
-        const { error: insertError } = await window.supabase.from('goods').insert(goods);
-        if (insertError) throw insertError;
-        alert(`✅ 上传成功！共 ${goods.length} 件商品`);
-        window.loadGoods();
-      } catch (err) {
-        console.error("上传商品失败:", err);
-        alert("上传失败");
-      }
+      
+      localStorage.setItem(STORAGE_GOODS, JSON.stringify(goods));
+      alert(`✅ 上传成功！共 ${goods.length} 件商品`);
+      showGoodsPreview(goods);
     };
     reader.readAsArrayBuffer(file);
   }
-
-  window.viewCurrentGoods = async function() {
-    try {
-      const { data, error } = await window.supabase.from('goods').select('*');
-      if (error) throw error;
-      if (!data || !data.length) return alert("暂无商品");
-      alert(data.map((g,i) => `${i+1}. ${g.name} (${g.code})`).join("\n"));
-    } catch (err) {
-      alert("获取商品失败");
+  
+  function showGoodsPreview(goods) {
+    const preview = document.getElementById("goodsPreview");
+    if (goods && goods.length) {
+      preview.innerHTML = `📚 当前商品库：${goods.length}件商品 (${goods.slice(0,3).map(g=>g.name).join("、")}${goods.length>3?"…":""})`;
+    } else {
+      const g = JSON.parse(localStorage.getItem(STORAGE_GOODS) || "[]");
+      if (g.length) preview.innerHTML = `📚 商品库：${g.length}件商品`;
+      else preview.innerHTML = "⚡ 暂无商品，请上传";
     }
   }
-
-  window.exportSampleTemplate = function() {
-    const csv = "编码,商品名称\n6941899614135,红岁驰春 迷你吧唧1对\n6941899614234,南漫社限定亚克力立牌";
-    window.downloadCSV(csv, "商品上传模板.csv");
+  
+  function viewCurrentGoods() {
+    const goods = JSON.parse(localStorage.getItem(STORAGE_GOODS) || "[]");
+    if (!goods.length) return alert("暂无商品");
+    alert(goods.map((g,i) => `${i+1}. ${g.name} (${g.code})`).join("\n"));
   }
-
+  
+  function exportSampleTemplate() {
+    const csv = "编码,商品名称\n6941899614135,红岁驰春 迷你吧唧1对\n6941899614234,南漫社限定亚克力立牌";
+    downloadCSV(csv, "商品上传模板.csv");
+  }
+  
   // ========== 订单管理 ==========
-  window.loadOrders = async function() {
-    let query = window.supabase.from('orders').select('*');
+  function getAllOrders() {
+    let orders = JSON.parse(localStorage.getItem(STORAGE_ORDERS) || "[]");
+    orders.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+    return orders;
+  }
+  
+  function saveOrders(orders) {
+    localStorage.setItem(STORAGE_ORDERS, JSON.stringify(orders));
+    // 触发存储事件，通知用户端
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: STORAGE_ORDERS,
+      newValue: JSON.stringify(orders)
+    }));
+  }
+  
+  function loadOrders() {
+    let orders = getAllOrders();
+    
+    // 订单号搜索优先
     if (currentSearchNo) {
-      query = query.eq('orderNo', currentSearchNo);
+      orders = orders.filter(o => o.orderNo === currentSearchNo);
     } else {
+      // 日期筛选
       const startDate = document.getElementById("startDate").value;
       const endDate = document.getElementById("endDate").value;
-      currentStartDate = startDate;
-      currentEndDate = endDate;
+      
       if (startDate) {
-        const startTimestamp = new Date(startDate).setHours(0,0,0,0);
-        query = query.gte('timestamp', startTimestamp);
+        const startTime = new Date(startDate).setHours(0,0,0,0);
+        orders = orders.filter(o => (o.timestamp || 0) >= startTime);
       }
       if (endDate) {
-        const endTimestamp = new Date(endDate).setHours(23,59,59,999);
-        query = query.lte('timestamp', endTimestamp);
+        const endTime = new Date(endDate).setHours(23,59,59,999);
+        orders = orders.filter(o => (o.timestamp || 0) <= endTime);
       }
     }
-    query = query.order('timestamp', { ascending: false });
-    try {
-      const { data, error } = await query;
-      if (error) throw error;
-      document.getElementById("orderCountBadge").innerHTML = `📊 订单数: ${data.length}`;
-      window.renderOrderList(data);
-    } catch (err) {
-      console.error("加载订单失败:", err);
-      document.getElementById("orderList").innerHTML = "<div class='empty-orders'>加载失败，请检查Supabase配置</div>";
-    }
+    
+    document.getElementById("orderCountBadge").innerHTML = `📊 订单数: ${orders.length}`;
+    renderOrderList(orders);
   }
-
-  window.renderOrderList = function(orders) {
+  
+  function searchByOrderNo() {
+    const searchNo = document.getElementById("searchOrderNo").value.trim();
+    if (!searchNo) {
+      alert("请输入订单号");
+      return;
+    }
+    currentSearchNo = searchNo;
+    loadOrders();
+  }
+  
+  function clearSearch() {
+    currentSearchNo = "";
+    document.getElementById("searchOrderNo").value = "";
+    loadOrders();
+  }
+  
+  function renderOrderList(orders) {
     const container = document.getElementById("orderList");
     if (!orders.length) {
       container.innerHTML = `<div class="empty-orders">📭 暂无订单</div>`;
       return;
     }
+    
     container.innerHTML = orders.map(order => {
       const goodsHtml = (order.goods || []).map(g => 
-        `<span style="background:#f2f4f8; padding:2px 10px; border-radius:20px; margin-right:6px;">${window.escapeHtml(g.name)} ×${g.num}</span>`
+        `<span style="background:#f2f4f8; padding:2px 10px; border-radius:20px; margin-right:6px;">${escapeHtml(g.name)} ×${g.num}</span>`
       ).join("");
+      
       const codesHtml = (order.goods || []).map(g => 
-        `<span style="background:#eef3ff; padding:2px 8px; border-radius:20px; font-size:12px;">${window.escapeHtml(g.code)}</span>`
+        `<span class="code-text" style="background:#eef3ff; padding:2px 8px; border-radius:20px; font-size:12px;">${escapeHtml(g.code)}</span>`
       ).join(", ");
+      
       const hasLogistics = order.logistics && order.logistics.trim();
+      
       return `
-        <div class="order-card" data-order-no="${order.orderNo}">
+        <div class="order-card">
           <div class="order-header">
-            <div><span class="order-no">🧾 ${window.escapeHtml(order.orderNo)}</span></div>
-            <div style="color:#6c7a8a;">🕒 ${window.escapeHtml(order.createTime || '未知')}</div>
+            <div><span class="order-no">🧾 ${escapeHtml(order.orderNo)}</span></div>
+            <div style="color:#6c7a8a;">🕒 ${escapeHtml(order.createTime || '未知')}</div>
           </div>
           <div class="info-grid">
-            <div>👤 ${window.escapeHtml(order.name)}</div>
-            <div>📞 ${window.escapeHtml(order.phone)}</div>
-            <div>📍 ${window.escapeHtml(order.address)}</div>
+            <div>👤 ${escapeHtml(order.name)}</div>
+            <div>📞 ${escapeHtml(order.phone)}</div>
+            <div>📍 ${escapeHtml(order.address)}</div>
           </div>
           <div class="goods-detail">
             <div style="font-weight:500; margin-bottom:6px;">🎁 商品明细：</div>
@@ -382,61 +384,49 @@
           </div>
           <div class="logistics-area">
             <div>${hasLogistics ? '<span class="badge-shipped">📮 已发货</span>' : '<span style="background:#ffefe5; padding:2px 12px; border-radius:30px;">⏳ 待发货</span>'}</div>
-            <input type="text" id="log_${order.orderNo}" class="logistics-input" placeholder="输入物流单号" value="${window.escapeHtml(order.logistics || '')}">
-            <button class="btn btn-blue btn-sm" style="padding:6px 14px;" onclick="window.updateLogistics('${order.orderNo}')">💾 保存</button>
-            <button class="btn btn-red btn-sm" style="padding:6px 14px; background:#ff4d4f;" onclick="window.deleteOrder('${order.orderNo}')">🗑️ 删除订单</button>
+            <input type="text" id="log_${order.orderNo}" class="logistics-input" placeholder="输入物流单号" value="${escapeHtml(order.logistics || '')}">
+            <button class="btn btn-blue btn-sm" style="padding:6px 14px;" onclick="updateLogistics('${order.orderNo}')">💾 保存</button>
+            <button class="btn btn-red btn-sm" style="padding:6px 14px; background:#ff4d4f;" onclick="deleteOrder('${order.orderNo}')">🗑️ 删除订单</button>
           </div>
         </div>
       `;
     }).join("");
   }
-
-  window.updateLogistics = async function(orderNo) {
+  
+  // 单个更新物流
+  function updateLogistics(orderNo) {
     const input = document.getElementById(`log_${orderNo}`);
     const logistics = input.value.trim();
     if (!logistics) return alert("请输入物流单号");
-    try {
-      const { error } = await window.supabase.from('orders').update({ logistics }).eq('orderNo', orderNo);
-      if (error) throw error;
+    
+    let orders = getAllOrders();
+    const index = orders.findIndex(o => o.orderNo === orderNo);
+    if (index !== -1) {
+      orders[index].logistics = logistics;
+      saveOrders(orders);
       alert(`✅ 订单 ${orderNo} 物流已更新`);
-      window.loadOrders();
-    } catch (err) {
-      alert("更新失败");
+      loadOrders();
     }
   }
-
-  window.deleteOrder = async function(orderNo) {
+  
+  // 删除订单（同步到用户端）
+  function deleteOrder(orderNo) {
     if (!confirm(`确定删除订单 ${orderNo} 吗？用户端也将同步删除。`)) return;
-    try {
-      const { error } = await window.supabase.from('orders').delete().eq('orderNo', orderNo);
-      if (error) throw error;
-      alert(`✅ 订单 ${orderNo} 已删除`);
-      window.loadOrders();
-    } catch (err) {
-      alert("删除失败");
-    }
+    
+    let orders = getAllOrders();
+    const newOrders = orders.filter(o => o.orderNo !== orderNo);
+    saveOrders(newOrders);
+    alert(`✅ 订单 ${orderNo} 已删除`);
+    loadOrders();
   }
-
-  window.searchByOrderNo = function() {
-    const searchNo = document.getElementById("searchOrderNo").value.trim();
-    if (!searchNo) { alert("请输入订单号"); return; }
-    currentSearchNo = searchNo;
-    window.loadOrders();
-  }
-
-  window.clearSearch = function() {
-    currentSearchNo = "";
-    document.getElementById("searchOrderNo").value = "";
-    document.getElementById("startDate").value = "";
-    document.getElementById("endDate").value = "";
-    window.loadOrders();
-  }
-
-  window.batchUploadLogistics = async function() {
+  
+  // ========== 批量上传物流 ==========
+  function batchUploadLogistics() {
     const file = document.getElementById("logisticsFile").files[0];
     if (!file) return alert("请选择物流单号文件");
+    
     const reader = new FileReader();
-    reader.onload = async function(e) {
+    reader.onload = function(e) {
       let text = "";
       try {
         const decoder = new TextDecoder("gbk");
@@ -444,79 +434,106 @@
       } catch(e) {
         text = new TextDecoder("utf-8").decode(new Uint8Array(e.target.result));
       }
+      
       const lines = text.split(/\r?\n/).filter(l => l.trim());
-      let successCount = 0, notFoundCount = 0;
-      for (const line of lines) {
+      const logisticsMap = {};
+      let successCount = 0;
+      let notFoundCount = 0;
+      
+      lines.forEach(line => {
         let [orderNo, logistics] = line.split(",");
         if (orderNo && logistics) {
           orderNo = orderNo.replace(/^["']|["']$/g, '').trim();
           logistics = logistics.replace(/^["']|["']$/g, '').trim();
-          const { error } = await window.supabase.from('orders').update({ logistics }).eq('orderNo', orderNo);
-          if (error) notFoundCount++;
-          else successCount++;
+          if (orderNo && logistics) {
+            logisticsMap[orderNo] = logistics;
+          }
+        }
+      });
+      
+      if (Object.keys(logisticsMap).length === 0) {
+        return alert("未识别到有效数据，格式：订单号,物流单号");
+      }
+      
+      let orders = getAllOrders();
+      
+      for (const [orderNo, logistics] of Object.entries(logisticsMap)) {
+        const index = orders.findIndex(o => o.orderNo === orderNo);
+        if (index !== -1) {
+          orders[index].logistics = logistics;
+          successCount++;
+        } else {
+          notFoundCount++;
         }
       }
-      alert(`✅ 批量更新完成！成功：${successCount} 笔，未找到订单：${notFoundCount} 笔`);
-      window.loadOrders();
+      
+      if (successCount > 0) {
+        saveOrders(orders);
+        alert(`✅ 批量更新完成！成功：${successCount} 笔，未找到订单：${notFoundCount} 笔`);
+        loadOrders();
+      } else {
+        alert(`❌ 未找到任何匹配的订单，请检查订单号是否正确`);
+      }
     };
     reader.readAsArrayBuffer(file);
   }
-
-  window.downloadLogisticsTemplate = function() {
+  
+  function downloadLogisticsTemplate() {
     const csv = "订单号,物流单号\nNMS1735200000000,SF1234567890\nNMS1735200000001,YT9876543210";
-    window.downloadCSV(csv, "物流批量上传模板.csv");
+    downloadCSV(csv, "物流批量上传模板.csv");
   }
-
-  window.exportFilteredOrders = async function() {
-    let query = window.supabase.from('orders').select('*');
+  
+  // ========== 导出功能 ==========
+  function exportFilteredOrders() {
+    let orders = getAllOrders();
+    
     if (currentSearchNo) {
-      query = query.eq('orderNo', currentSearchNo);
+      orders = orders.filter(o => o.orderNo === currentSearchNo);
     } else {
       const startDate = document.getElementById("startDate").value;
       const endDate = document.getElementById("endDate").value;
       if (startDate) {
-        const startTimestamp = new Date(startDate).setHours(0,0,0,0);
-        query = query.gte('timestamp', startTimestamp);
+        const startTime = new Date(startDate).setHours(0,0,0,0);
+        orders = orders.filter(o => (o.timestamp || 0) >= startTime);
       }
       if (endDate) {
-        const endTimestamp = new Date(endDate).setHours(23,59,59,999);
-        query = query.lte('timestamp', endTimestamp);
+        const endTime = new Date(endDate).setHours(23,59,59,999);
+        orders = orders.filter(o => (o.timestamp || 0) <= endTime);
       }
     }
-    try {
-      const { data, error } = await query.order('timestamp', { ascending: false });
-      if (error) throw error;
-      if (!data.length) return alert("无订单可导出");
-      const headers = ["订单号", "下单日期", "收件人", "电话", "地址", "商品名称", "数量", "商品编码", "物流单号"];
-      const rows = [headers];
-      data.forEach(o => {
-        if (o.goods && o.goods.length) {
-          o.goods.forEach(g => {
-            rows.push([
-              o.orderNo, o.createTime, o.name, o.phone, o.address,
-              g.name, g.num, g.code, o.logistics || ""
-            ]);
-          });
-        } else {
-          rows.push([o.orderNo, o.createTime, o.name, o.phone, o.address, "", "", "", o.logistics || ""]);
-        }
-      });
-      const csv = rows.map(row => row.map(cell => {
-        if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"'))) {
-          return `"${cell.replace(/"/g, '""')}"`;
-        }
-        return cell;
-      }).join(",")).join("\n");
-      const startLabel = document.getElementById("startDate").value || "全部";
-      const endLabel = document.getElementById("endDate").value || "全部";
-      const suffix = currentSearchNo ? `订单_${currentSearchNo}` : `${startLabel}_至_${endLabel}`;
-      window.downloadCSV(csv, `南漫社订单_${suffix}.csv`);
-    } catch (err) {
-      alert("导出失败");
-    }
+    
+    if (orders.length === 0) return alert("无订单可导出");
+    
+    const headers = ["订单号", "下单日期", "收件人", "电话", "地址", "商品名称", "数量", "商品编码", "物流单号"];
+    const rows = [headers];
+    
+    orders.forEach(o => {
+      if (o.goods && o.goods.length) {
+        o.goods.forEach(g => {
+          rows.push([
+            o.orderNo, o.createTime, o.name, o.phone, o.address,
+            g.name, g.num, g.code, o.logistics || ""
+          ]);
+        });
+      } else {
+        rows.push([o.orderNo, o.createTime, o.name, o.phone, o.address, "", "", "", o.logistics || ""]);
+      }
+    });
+    
+    const csv = rows.map(row => row.map(cell => {
+      if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"'))) {
+        return `"${cell.replace(/"/g, '""')}"`;
+      }
+      return cell;
+    }).join(",")).join("\n");
+    
+    const startLabel = document.getElementById("startDate").value || "全部";
+    const endLabel = document.getElementById("endDate").value || "全部";
+    const suffix = currentSearchNo ? `订单_${currentSearchNo}` : `${startLabel}_至_${endLabel}`;
+    downloadCSV(csv, `南漫社订单_${suffix}.csv`);
   }
-
-  window.downloadCSV = function(content, filename) {
+  
+  function downloadCSV(content, filename) {
     const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -524,8 +541,8 @@
     link.click();
     URL.revokeObjectURL(link.href);
   }
-
-  window.escapeHtml = function(str) {
+  
+  function escapeHtml(str) {
     if (!str) return '';
     return str.replace(/[&<>]/g, function(m) {
       if (m === '&') return '&amp;';
@@ -534,26 +551,18 @@
       return m;
     });
   }
-
-  // 实时监听
-  window.subscribeOrders = function() {
-    window.supabase.channel('admin-orders-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => window.loadOrders())
-      .subscribe();
-  }
-
-  window.subscribeGoods = function() {
-    window.supabase.channel('admin-goods-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'goods' }, () => window.loadGoods())
-      .subscribe();
-  }
-
-  // 页面加载初始化
-  window.onload = async () => {
-    await window.loadGoods();
-    await window.loadOrders();
-    window.subscribeOrders();
-    window.subscribeGoods();
+  
+  // 监听其他标签页变化
+  window.addEventListener("storage", (e) => {
+    if (e.key === STORAGE_ORDERS || e.key === STORAGE_GOODS) {
+      loadOrders();
+      showGoodsPreview();
+    }
+  });
+  
+  window.onload = () => {
+    showGoodsPreview();
+    loadOrders();
   };
 </script>
 </body>
