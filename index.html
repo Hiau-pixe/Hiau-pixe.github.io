@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <title>南漫社 · 达人寄样系统（云端同步）</title>
-<!-- 使用 UMD 格式的 Supabase SDK，避免 ES 模块问题 -->
 <script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
   * {
@@ -172,20 +171,17 @@
 
 <h1 class="title-main">🎁 南漫社达人寄样下单</h1>
 
-<!-- 商品列表 -->
 <div class="card">
   <div style="font-weight:600; margin-bottom:10px;">✨ 精选寄样商品 <button class="refresh-btn" onclick="loadGoodsFromDB()" style="float:right;">🔄 刷新</button></div>
   <div class="goods-grid" id="goodsList"><div class="loading">加载商品中...</div></div>
   <div style="font-size:12px; color:#888; margin-top:8px;">👆 点击「加购」可多选</div>
 </div>
 
-<!-- 购物车 -->
 <div class="cart-box">
   <div style="font-weight:700; margin-bottom:10px;">🛒 已选商品</div>
   <div id="cartList"></div>
 </div>
 
-<!-- 收货表单 -->
 <div class="card">
   <div style="font-weight:700; margin-bottom:12px;">📮 收货信息</div>
   <input type="text" id="addressRaw" placeholder="粘贴地址+姓名+电话 一键解析">
@@ -196,7 +192,6 @@
   <button class="submit-btn" onclick="submitOrder()">✅ 提交寄样订单</button>
 </div>
 
-<!-- 历史订单 -->
 <div class="card">
   <div class="flex-between">
     <div style="font-weight:700;">📋 我的历史订单</div>
@@ -205,7 +200,6 @@
   <div id="historyList"></div>
 </div>
 
-<!-- 提交成功展示 -->
 <div class="order-result" id="orderResult">
   <p style="color:#07c160;font-weight:700;">✅ 提交成功！商家将尽快发货</p>
   <p>📦 订单号：<span id="orderNo" style="color:#d81e06;font-weight:bold;"></span></p>
@@ -213,7 +207,6 @@
   <p>🎁 商品：<span id="orderGoods"></span></p>
 </div>
 
-<!-- 物流查询 -->
 <div class="card">
   <div style="font-weight:700; margin-bottom:12px;">🔎 订单物流跟踪</div>
   <input class="query-input" id="queryOrderNo" placeholder="输入订单号查询">
@@ -223,31 +216,26 @@
 
 <script>
   // ==================== SUPABASE 配置 ====================
-  const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';     // 替换为你的 Supabase URL
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                  // 替换为你的 anon key
+  const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';     // ⚠️ 替换为你的 Supabase URL
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                  // ⚠️ 替换为你的 anon key
 
-  // 确保 SDK 已加载，避免重复声明
-  let supabase;
-  if (typeof window.supabase !== 'undefined') {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } else {
+  // 确保 SDK 已加载
+  if (typeof window.supabase === 'undefined') {
     alert('Supabase SDK 加载失败，请检查网络后刷新页面');
     throw new Error('Supabase SDK not loaded');
   }
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // ==================== 全局变量 ====================
+  // 全局变量
   let cart = [];
   let currentUserPhone = "";
 
-  // ==================== 商品相关 ====================
+  // ========== 商品管理 ==========
   async function loadGoodsFromDB() {
     const container = document.getElementById("goodsList");
     container.innerHTML = '<div class="loading">加载商品中...</div>';
     try {
-      const { data, error } = await supabase
-        .from('goods')
-        .select('*')
-        .order('name');
+      const { data, error } = await supabase.from('goods').select('*').order('name');
       if (error) throw error;
       if (!data || data.length === 0) {
         const defaultGoods = [
@@ -483,7 +471,7 @@
     }
   }
 
-  // 实时监听订单变化
+  // 实时监听
   function subscribeOrders() {
     supabase
       .channel('orders-changes')
