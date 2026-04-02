@@ -6,165 +6,30 @@
 <title>南漫社 · 达人寄样系统（云端同步）</title>
 <script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: system-ui, -apple-system, 'Segoe UI', '微软雅黑', sans-serif;
-  }
-  body {
-    background: #f5f7fb;
-    padding: 12px;
-    max-width: 700px;
-    margin: 0 auto;
-  }
-  .card {
-    background: #ffffff;
-    border-radius: 20px;
-    padding: 16px;
-    margin-bottom: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-  }
-  .title-main {
-    text-align: center;
-    font-size: 22px;
-    font-weight: 700;
-    color: #d81e06;
-    margin: 8px 0 12px;
-  }
-  .goods-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .goods-item {
-    background: #fff;
-    border-radius: 16px;
-    padding: 10px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border: 1px solid #f0f0f0;
-  }
-  .goods-name {
-    font-size: 14px;
-    font-weight: 500;
-    color: #2c3e4f;
-    flex: 1;
-  }
-  .add-btn {
-    background: #d81e06;
-    border: none;
-    color: white;
-    font-size: 12px;
-    padding: 6px 14px;
-    border-radius: 30px;
-    cursor: pointer;
-  }
-  .cart-box {
-    background: #fef6e0;
-    border-radius: 20px;
-    padding: 14px;
-    margin: 12px 0;
-  }
-  .cart-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    border-bottom: 1px dashed #ffe0a3;
-    font-size: 13px;
-  }
-  .num {
-    color: #d81e06;
-    font-weight: 700;
-  }
-  input, .parse-btn {
-    width: 100%;
-    padding: 12px 14px;
-    border-radius: 14px;
-    border: 1px solid #e2e8f0;
-    font-size: 14px;
-    margin-bottom: 10px;
-  }
-  .parse-btn {
-    background: #1677ff;
-    color: white;
-    border: none;
-    cursor: pointer;
-  }
-  .submit-btn {
-    background: #07c160;
-    color: white;
-    font-weight: 700;
-    border: none;
-    border-radius: 40px;
-    padding: 14px;
-    width: 100%;
-    cursor: pointer;
-  }
-  .order-result {
-    background: #eef9f0;
-    border-radius: 20px;
-    padding: 16px;
-    display: none;
-    border-left: 5px solid #07c160;
-  }
-  .history-item {
-    padding: 12px 0;
-    border-bottom: 1px solid #f0f0f0;
-    font-size: 13px;
-    position: relative;
-  }
-  .delete-order-btn {
-    background: #ff4d4f;
-    color: white;
-    border: none;
-    border-radius: 20px;
-    padding: 4px 12px;
-    font-size: 11px;
-    cursor: pointer;
-    margin-top: 8px;
-  }
-  .order-logistics {
-    font-size: 12px;
-    color: #07c160;
-    margin-top: 6px;
-  }
-  .flex-between {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .query-btn {
-    background: #1677ff;
-    border: none;
-    padding: 10px;
-    border-radius: 30px;
-    color: white;
-    cursor: pointer;
-    width: 100%;
-    margin-top: 6px;
-  }
-  .query-input {
-    margin-bottom: 6px;
-  }
-  .refresh-btn {
-    background: #2c3e50;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 30px;
-    color: white;
-    font-size: 12px;
-    cursor: pointer;
-  }
-  @media (max-width: 640px) {
-    .goods-grid { gap: 8px; }
-  }
-  .loading {
-    color: #888;
-    text-align: center;
-    padding: 20px;
-  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', '微软雅黑', sans-serif; }
+  body { background: #f5f7fb; padding: 12px; max-width: 700px; margin: 0 auto; }
+  .card { background: #ffffff; border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); }
+  .title-main { text-align: center; font-size: 22px; font-weight: 700; color: #d81e06; margin: 8px 0 12px; }
+  .goods-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .goods-item { background: #fff; border-radius: 16px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #f0f0f0; }
+  .goods-name { font-size: 14px; font-weight: 500; color: #2c3e4f; flex: 1; }
+  .add-btn { background: #d81e06; border: none; color: white; font-size: 12px; padding: 6px 14px; border-radius: 30px; cursor: pointer; }
+  .cart-box { background: #fef6e0; border-radius: 20px; padding: 14px; margin: 12px 0; }
+  .cart-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ffe0a3; font-size: 13px; }
+  .num { color: #d81e06; font-weight: 700; }
+  input, .parse-btn { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid #e2e8f0; font-size: 14px; margin-bottom: 10px; }
+  .parse-btn { background: #1677ff; color: white; border: none; cursor: pointer; }
+  .submit-btn { background: #07c160; color: white; font-weight: 700; border: none; border-radius: 40px; padding: 14px; width: 100%; cursor: pointer; }
+  .order-result { background: #eef9f0; border-radius: 20px; padding: 16px; display: none; border-left: 5px solid #07c160; }
+  .history-item { padding: 12px 0; border-bottom: 1px solid #f0f0f0; font-size: 13px; position: relative; }
+  .delete-order-btn { background: #ff4d4f; color: white; border: none; border-radius: 20px; padding: 4px 12px; font-size: 11px; cursor: pointer; margin-top: 8px; }
+  .order-logistics { font-size: 12px; color: #07c160; margin-top: 6px; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .query-btn { background: #1677ff; border: none; padding: 10px; border-radius: 30px; color: white; cursor: pointer; width: 100%; margin-top: 6px; }
+  .query-input { margin-bottom: 6px; }
+  .refresh-btn { background: #2c3e50; border: none; padding: 6px 12px; border-radius: 30px; color: white; font-size: 12px; cursor: pointer; }
+  @media (max-width: 640px) { .goods-grid { gap: 8px; } }
+  .loading { color: #888; text-align: center; padding: 20px; }
 </style>
 </head>
 <body>
@@ -293,7 +158,6 @@
     `).join("");
   }
 
-  // 地址解析
   function parseAddress() {
     const raw = document.getElementById("addressRaw").value.trim();
     if (!raw) return alert("请粘贴内容");
@@ -310,12 +174,10 @@
     }
   }
 
-  // 生成订单号
   function createOrderNo() {
     return "NMS" + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase();
   }
 
-  // 提交订单
   async function submitOrder() {
     const name = document.getElementById("name").value.trim();
     const phone = document.getElementById("phone").value.trim();
@@ -362,7 +224,6 @@
     }
   }
 
-  // 加载我的订单
   async function loadMyOrders() {
     const phone = document.getElementById("phone").value.trim();
     if (!phone) {
@@ -471,7 +332,6 @@
     }
   }
 
-  // 实时监听
   function subscribeOrders() {
     supabase
       .channel('orders-changes')
