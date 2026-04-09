@@ -3,20 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>南漫社 · 达人寄样系统（云端同步）</title>
-<script src="https://fastly.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<title>南漫社 · 达人寄样系统</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; font-family: system-ui, -apple-system, 'Segoe UI', '微软雅黑', sans-serif; }
   body { background: #f5f7fb; padding: 12px; max-width: 700px; margin: 0 auto; }
-  .card { background: #ffffff; border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04); }
+  .card { background: #ffffff; border-radius: 20px; padding: 16px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
   .title-main { text-align: center; font-size: 22px; font-weight: 700; color: #d81e06; margin: 8px 0 12px; }
   .goods-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .goods-item { background: #fff; border-radius: 16px; padding: 10px 12px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #f0f0f0; }
   .goods-name { font-size: 14px; font-weight: 500; color: #2c3e4f; flex: 1; }
   .add-btn { background: #d81e06; border: none; color: white; font-size: 12px; padding: 6px 14px; border-radius: 30px; cursor: pointer; }
   .cart-box { background: #fef6e0; border-radius: 20px; padding: 14px; margin: 12px 0; }
-  .cart-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #ffe0a3; font-size: 13px; }
+  .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #ffe0a3; font-size: 13px; }
+  .cart-item-info { display: flex; gap: 8px; align-items: baseline; }
+  .cart-item-name { font-weight: 500; }
   .num { color: #d81e06; font-weight: 700; }
+  .cart-delete { background: #ff4d4f; border: none; color: white; font-size: 11px; padding: 4px 10px; border-radius: 20px; cursor: pointer; margin-left: 8px; }
   input, .parse-btn { width: 100%; padding: 12px 14px; border-radius: 14px; border: 1px solid #e2e8f0; font-size: 14px; margin-bottom: 10px; }
   .parse-btn { background: #1677ff; color: white; border: none; cursor: pointer; }
   .submit-btn { background: #07c160; color: white; font-weight: 700; border: none; border-radius: 40px; padding: 14px; width: 100%; cursor: pointer; }
@@ -27,114 +29,175 @@
   .flex-between { display: flex; justify-content: space-between; align-items: center; }
   .query-btn { background: #1677ff; border: none; padding: 10px; border-radius: 30px; color: white; cursor: pointer; width: 100%; margin-top: 6px; }
   .query-input { margin-bottom: 6px; }
-  .refresh-btn { background: #2c3e50; border: none; padding: 6px 12px; border-radius: 30px; color: white; font-size: 12px; cursor: pointer; }
   @media (max-width: 640px) { .goods-grid { gap: 8px; } }
-  .loading { color: #888; text-align: center; padding: 20px; }
+  .login-panel { background: white; border-radius: 28px; padding: 28px 20px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); }
+  .login-tab { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid #f0f0f0; }
+  .tab-btn { flex: 1; background: none; border: none; padding: 10px; font-size: 16px; font-weight: 600; color: #888; cursor: pointer; transition: 0.2s; }
+  .tab-btn.active { color: #d81e06; border-bottom: 2px solid #d81e06; margin-bottom: -2px; }
+  .login-form input { margin-bottom: 12px; }
+  .login-btn { background: #d81e06; color: white; width: 100%; padding: 12px; border: none; border-radius: 40px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+  .user-bar { background: #fff0e6; border-radius: 40px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .logout-btn { background: #ff4d4f; border: none; color: white; padding: 6px 16px; border-radius: 30px; cursor: pointer; font-size: 13px; }
+  .welcome-text { font-weight: 600; color: #d81e06; }
+  .app-main { display: none; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<h1 class="title-main">🎁 南漫社达人寄样下单</h1>
-
-<div class="card">
-  <div style="font-weight:600; margin-bottom:10px;">✨ 精选寄样商品 <button class="refresh-btn" onclick="loadGoodsFromDB()" style="float:right;">🔄 刷新</button></div>
-  <div class="goods-grid" id="goodsList"><div class="loading">加载商品中...</div></div>
-  <div style="font-size:12px; color:#888; margin-top:8px;">👆 点击「加购」可多选</div>
-</div>
-
-<div class="cart-box">
-  <div style="font-weight:700; margin-bottom:10px;">🛒 已选商品</div>
-  <div id="cartList"></div>
-</div>
-
-<div class="card">
-  <div style="font-weight:700; margin-bottom:12px;">📮 收货信息</div>
-  <input type="text" id="addressRaw" placeholder="粘贴地址+姓名+电话 一键解析">
-  <button class="parse-btn" onclick="parseAddress()">✨ 智能解析</button>
-  <input type="text" id="name" placeholder="收件人姓名">
-  <input type="text" id="phone" placeholder="手机号码">
-  <input type="text" id="address" placeholder="详细地址">
-  <button class="submit-btn" onclick="submitOrder()">✅ 提交寄样订单</button>
-</div>
-
-<div class="card">
-  <div class="flex-between">
-    <div style="font-weight:700;">📋 我的历史订单</div>
-    <button class="refresh-btn" onclick="loadMyOrders()">🔄 刷新</button>
+<div id="loginContainer" class="login-panel">
+  <div class="login-tab">
+    <button class="tab-btn active" onclick="switchTab('login')">登录</button>
+    <button class="tab-btn" onclick="switchTab('register')">注册</button>
   </div>
-  <div id="historyList"></div>
+  <div id="loginForm" class="login-form">
+    <input type="email" id="loginEmail" placeholder="邮箱" autocomplete="off">
+    <input type="password" id="loginPassword" placeholder="密码">
+    <button class="login-btn" onclick="doLogin()">登录</button>
+  </div>
+  <div id="registerForm" class="login-form" style="display:none;">
+    <input type="email" id="regEmail" placeholder="邮箱">
+    <input type="password" id="regPassword" placeholder="密码 (至少6位)">
+    <button class="login-btn" onclick="doRegister()">注册新账号</button>
+  </div>
+  <div style="text-align:center; margin-top:16px; font-size:12px; color:#aaa;">✨ 登录后即可选品下单</div>
 </div>
 
-<div class="order-result" id="orderResult">
-  <p style="color:#07c160;font-weight:700;">✅ 提交成功！商家将尽快发货</p>
-  <p>📦 订单号：<span id="orderNo" style="color:#d81e06;font-weight:bold;"></span></p>
-  <p>🕒 下单时间：<span id="createTime"></span></p>
-  <p>🎁 商品：<span id="orderGoods"></span></p>
-</div>
+<div id="appMain" class="app-main">
+  <div class="user-bar">
+    <span class="welcome-text">👋 欢迎，<span id="currentUserEmail"></span></span>
+    <button class="logout-btn" onclick="logout()">退出登录</button>
+  </div>
+  <h1 class="title-main">🎁 南漫社达人寄样下单</h1>
 
-<div class="card">
-  <div style="font-weight:700; margin-bottom:12px;">🔎 订单物流跟踪</div>
-  <input class="query-input" id="queryOrderNo" placeholder="输入订单号查询">
-  <button class="query-btn" onclick="queryOrder()">📬 查询订单 / 物流单号</button>
-  <div id="queryResult" style="margin-top:12px; font-size:13px;"></div>
+  <div class="card">
+    <div style="font-weight:600; margin-bottom:10px;">✨ 精选寄样商品</div>
+    <div class="goods-grid" id="goodsList"></div>
+    <div style="font-size:12px; color:#888; margin-top:8px;">👆 点击「加购」可多选</div>
+  </div>
+
+  <div class="cart-box">
+    <div style="font-weight:700; margin-bottom:10px;">🛒 已选商品</div>
+    <div id="cartList"></div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700; margin-bottom:12px;">📮 收货信息</div>
+    <input type="text" id="addressRaw" placeholder="粘贴地址+姓名+电话 一键解析">
+    <button class="parse-btn" onclick="parseAddress()">✨ 智能解析</button>
+    <input type="text" id="receiverName" placeholder="收件人姓名">
+    <input type="text" id="phone" placeholder="手机号码">
+    <input type="text" id="address" placeholder="详细地址">
+    <button class="submit-btn" onclick="submitOrder()">✅ 提交寄样订单</button>
+  </div>
+
+  <div class="card">
+    <div class="flex-between">
+      <div style="font-weight:700;">📋 我的历史订单</div>
+      <span style="font-size:12px; color:#999;">实时同步，多端更新</span>
+    </div>
+    <div id="historyList"></div>
+  </div>
+
+  <div class="order-result" id="orderResult">
+    <p style="color:#07c160;font-weight:700;">✅ 提交成功！商家将尽快发货</p>
+    <p>📦 订单号：<span id="orderNo" style="color:#d81e06;font-weight:bold;"></span></p>
+    <p>🕒 下单时间：<span id="createTime"></span></p>
+    <p>🎁 商品：<span id="orderGoods"></span></p>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:700; margin-bottom:12px;">🔎 订单物流跟踪</div>
+    <input class="query-input" id="queryOrderNo" placeholder="输入订单号查询">
+    <button class="query-btn" onclick="queryOrder()">📬 查询订单 / 物流单号</button>
+    <div id="queryResult" style="margin-top:12px; font-size:13px;"></div>
+  </div>
 </div>
 
 <script>
-  // ==================== SUPABASE 配置 ====================
-  const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';     // ⚠️ 替换为你的 Supabase URL
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                  // ⚠️ 替换为你的 anon key
+  // ========== Supabase 配置（使用 anon key）==========
+  const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';   // 替换！
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                // 替换！
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // 确保 SDK 已加载
-  if (typeof window.supabase === 'undefined') {
-    alert('Supabase SDK 加载失败，请检查网络后刷新页面');
-    throw new Error('Supabase SDK not loaded');
-  }
-  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-  // 全局变量
   let cart = [];
-  let currentUserPhone = "";
+  let currentUser = null;
+
+  // ========== 登录/注册 ==========
+  async function doRegister() {
+    const email = document.getElementById('regEmail').value.trim();
+    const pwd = document.getElementById('regPassword').value.trim();
+    if (!email || !pwd || pwd.length < 6) return alert('邮箱和密码（至少6位）必填');
+    const { data, error } = await supabase.auth.signUp({ email, password: pwd });
+    if (error) return alert('注册失败: ' + error.message);
+    alert('注册成功！请登录');
+    switchTab('login');
+    document.getElementById('loginEmail').value = email;
+  }
+
+  async function doLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pwd = document.getElementById('loginPassword').value.trim();
+    if (!email || !pwd) return alert('请输入邮箱和密码');
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pwd });
+    if (error) return alert('登录失败: ' + error.message);
+    currentUser = data.user;
+    localStorage.setItem('supabase_user', JSON.stringify({ id: currentUser.id, email: currentUser.email }));
+    await afterLogin();
+  }
+
+  async function afterLogin() {
+    document.getElementById('loginContainer').style.display = 'none';
+    document.getElementById('appMain').style.display = 'block';
+    document.getElementById('currentUserEmail').innerText = currentUser.email;
+    cart = [];
+    renderCart();
+    await loadGoods();
+    await loadMyOrders();
+    setupRealtimeSubscription();
+    loadAddressCache();
+  }
+
+  function logout() {
+    supabase.auth.signOut();
+    localStorage.removeItem('supabase_user');
+    currentUser = null;
+    document.getElementById('loginContainer').style.display = 'block';
+    document.getElementById('appMain').style.display = 'none';
+    document.getElementById('orderResult').style.display = 'none';
+    if (window.orderSubscription) window.orderSubscription.unsubscribe();
+  }
+
+  function switchTab(type) {
+    const loginForm = document.getElementById('loginForm');
+    const regForm = document.getElementById('registerForm');
+    const btns = document.querySelectorAll('.tab-btn');
+    if (type === 'login') {
+      loginForm.style.display = 'block';
+      regForm.style.display = 'none';
+      btns[0].classList.add('active');
+      btns[1].classList.remove('active');
+    } else {
+      loginForm.style.display = 'none';
+      regForm.style.display = 'block';
+      btns[0].classList.remove('active');
+      btns[1].classList.add('active');
+    }
+  }
 
   // ========== 商品管理 ==========
-  async function loadGoodsFromDB() {
-    const container = document.getElementById("goodsList");
-    container.innerHTML = '<div class="loading">加载商品中...</div>';
-    try {
-      const { data, error } = await supabase.from('goods').select('*').order('name');
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        const defaultGoods = [
-          { code: "6941899614135", name: "红岁驰春 迷你吧唧1对" },
-          { code: "6941899614234", name: "南漫社限定亚克力立牌" },
-          { code: "6941899614331", name: "星尘回忆 色纸套装" }
-        ];
-        const { error: insertError } = await supabase.from('goods').insert(defaultGoods);
-        if (insertError) console.error("初始化商品失败", insertError);
-        else {
-          const { data: newData } = await supabase.from('goods').select('*');
-          renderGoodsList(newData || []);
-          return;
-        }
-      }
-      renderGoodsList(data);
-    } catch (err) {
-      console.error("加载商品失败:", err);
-      container.innerHTML = '<div style="color:red;">加载商品失败，请检查Supabase配置</div>';
-    }
-  }
-
-  function renderGoodsList(goods) {
-    const container = document.getElementById("goodsList");
-    if (!goods.length) {
-      container.innerHTML = "<div>暂无商品，请联系商家添加</div>";
-      return;
-    }
-    container.innerHTML = goods.map(item => `
+  async function loadGoods() {
+    const { data, error } = await supabase.from('goods').select('*');
+    if (error) return console.error(error);
+    const container = document.getElementById('goodsList');
+    if (!container) return;
+    if (!data || data.length === 0) return;
+    container.innerHTML = data.map(item => `
       <div class="goods-item">
         <div class="goods-name">${escapeHtml(item.name)}</div>
-        <button class="add-btn" onclick="addCart('${escapeHtml(item.name)}','${escapeHtml(item.code)}')">➕ 加购</button>
+        <button class="add-btn" onclick="addCart('${escapeHtml(item.name)}','${item.code}')">➕ 加购</button>
       </div>
-    `).join("");
+    `).join('');
   }
 
   function addCart(name, code) {
@@ -144,242 +207,198 @@
     renderCart();
   }
 
+  function removeFromCart(name) {
+    cart = cart.filter(i => i.name !== name);
+    renderCart();
+  }
+
   function renderCart() {
-    const cartDiv = document.getElementById("cartList");
+    const cartDiv = document.getElementById('cartList');
+    if (!cartDiv) return;
     if (cart.length === 0) {
       cartDiv.innerHTML = "<div style='color:#b97f10; padding:8px 0;'>✨ 暂未选择商品</div>";
       return;
     }
     cartDiv.innerHTML = cart.map(item => `
       <div class="cart-item">
-        <span>${escapeHtml(item.name)}</span>
-        <span>× <span class="num">${item.num}</span></span>
+        <div class="cart-item-info">
+          <span class="cart-item-name">${escapeHtml(item.name)}</span>
+          <span>× <span class="num">${item.num}</span></span>
+        </div>
+        <button class="cart-delete" onclick="removeFromCart('${escapeHtml(item.name)}')">删除</button>
       </div>
-    `).join("");
+    `).join('');
   }
 
+  // ========== 地址解析 ==========
   function parseAddress() {
-    const raw = document.getElementById("addressRaw").value.trim();
-    if (!raw) return alert("请粘贴内容");
-    const phone = raw.match(/1[3-9]\d{9}/)?.[0] || "";
-    const name = raw.match(/[\u4e00-\u9fa5]{2,6}/)?.[0] || "";
-    const address = raw.replace(name, "").replace(phone, "").trim();
-    document.getElementById("name").value = name;
-    document.getElementById("phone").value = phone;
-    document.getElementById("address").value = address;
-    alert("解析完成，请核对信息");
-    if (phone) {
-      currentUserPhone = phone;
-      loadMyOrders();
+    const raw = document.getElementById('addressRaw').value.trim();
+    if (!raw) return alert('请粘贴内容');
+    const phone = raw.match(/1[3-9]\d{9}/)?.[0] || '';
+    const nameMatch = raw.match(/[\u4e00-\u9fa5]{2,6}/);
+    const name = nameMatch ? nameMatch[0] : '';
+    let address = raw.replace(name, '').replace(phone, '').trim();
+    if (address.length === 0) address = raw;
+    document.getElementById('receiverName').value = name;
+    document.getElementById('phone').value = phone;
+    document.getElementById('address').value = address;
+    alert('解析完成，请核对信息');
+  }
+
+  function loadAddressCache() {
+    const key = `addr_${currentUser.id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const addr = JSON.parse(saved);
+        if (addr.name) document.getElementById('receiverName').value = addr.name;
+        if (addr.phone) document.getElementById('phone').value = addr.phone;
+        if (addr.address) document.getElementById('address').value = addr.address;
+      } catch(e) {}
     }
   }
 
+  function saveAddressCache(name, phone, address) {
+    localStorage.setItem(`addr_${currentUser.id}`, JSON.stringify({ name, phone, address }));
+  }
+
+  // ========== 订单操作 ==========
   function createOrderNo() {
-    return "NMS" + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase();
+    return 'NMS' + Date.now() + Math.random().toString(36).substr(2, 6).toUpperCase();
   }
 
   async function submitOrder() {
-    const name = document.getElementById("name").value.trim();
-    const phone = document.getElementById("phone").value.trim();
-    const address = document.getElementById("address").value.trim();
-    if (!name || !phone || !address) return alert("请完善收货信息");
-    if (!/^1[3-9]\d{9}$/.test(phone)) return alert("手机号格式不正确");
-    if (cart.length === 0) return alert("请选择商品");
+    if (!currentUser) return alert('请先登录');
+    const receiverName = document.getElementById('receiverName').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const address = document.getElementById('address').value.trim();
+    if (!receiverName || !phone || !address) return alert('请完善收货信息');
+    if (!/^1[3-9]\d{9}$/.test(phone)) return alert('手机号格式不正确');
+    if (cart.length === 0) return alert('请选择商品');
 
-    localStorage.setItem("userInfo", JSON.stringify({ name, phone, address }));
-    currentUserPhone = phone;
+    saveAddressCache(receiverName, phone, address);
 
     const orderNo = createOrderNo();
     const now = new Date();
     const createTime = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
 
     const newOrder = {
-      orderNo,
-      name,
-      phone,
-      address,
-      goods: cart.map(item => ({ name: item.name, code: item.code, num: item.num })),
-      createTime,
-      logistics: "",
-      timestamp: now.getTime()
+      order_no: orderNo,
+      user_id: currentUser.id,
+      user_name: currentUser.email,
+      receiver_name: receiverName,
+      phone: phone,
+      address: address,
+      goods: cart,
+      logistics: '',
+      status: 'pending',
+      created_at: new Date().toISOString()
     };
 
-    try {
-      const { error } = await supabase.from('orders').insert([newOrder]);
-      if (error) throw error;
+    const { error } = await supabase.from('orders').insert([newOrder]);
+    if (error) return alert('提交失败: ' + error.message);
 
-      document.getElementById("orderResult").style.display = "block";
-      document.getElementById("orderNo").innerText = orderNo;
-      document.getElementById("createTime").innerText = createTime;
-      document.getElementById("orderGoods").innerText = cart.map(i => `${i.name}×${i.num}`).join("，");
+    document.getElementById('orderResult').style.display = 'block';
+    document.getElementById('orderNo').innerText = orderNo;
+    document.getElementById('createTime').innerText = createTime;
+    document.getElementById('orderGoods').innerText = cart.map(i => `${i.name}×${i.num}`).join('，');
 
-      cart = [];
-      renderCart();
-      await loadMyOrders();
-      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 100);
-      alert(`订单提交成功！\n订单号：${orderNo}`);
-    } catch (err) {
-      console.error("提交订单失败:", err);
-      alert("提交失败，请检查网络或Supabase配置");
-    }
+    cart = [];
+    renderCart();
+    await loadMyOrders();
+    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 100);
+    alert(`订单提交成功！\n订单号：${orderNo}`);
   }
 
   async function loadMyOrders() {
-    const phone = document.getElementById("phone").value.trim();
-    if (!phone) {
-      document.getElementById("historyList").innerHTML = "<div style='color:#aaa; padding:12px 0;'>请输入手机号后查看订单</div>";
+    if (!currentUser) return;
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+    if (error) return console.error(error);
+    const historyDiv = document.getElementById('historyList');
+    if (!historyDiv) return;
+    if (!data || data.length === 0) {
+      historyDiv.innerHTML = '<div style="color:#aaa; padding:12px 0;">暂无订单记录</div>';
       return;
     }
-    currentUserPhone = phone;
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('phone', phone)
-        .order('timestamp', { ascending: false });
-      if (error) throw error;
-      renderHistoryOrders(data || []);
-    } catch (err) {
-      console.error("加载历史订单失败:", err);
-      document.getElementById("historyList").innerHTML = "<div style='color:red;'>加载失败</div>";
-    }
-  }
-
-  function renderHistoryOrders(orders) {
-    const historyDiv = document.getElementById("historyList");
-    if (!orders.length) {
-      historyDiv.innerHTML = "<div style='color:#aaa; padding:12px 0;'>暂无订单记录</div>";
-      return;
-    }
-    historyDiv.innerHTML = orders.slice(0, 20).map(o => `
+    historyDiv.innerHTML = data.map(o => `
       <div class="history-item">
         <div class="flex-between">
-          <strong>${escapeHtml(o.orderNo)}</strong>
-          <span style="color:#888; font-size:12px;">${escapeHtml(o.createTime)}</span>
+          <strong>${escapeHtml(o.order_no)}</strong>
+          <span style="color:#888; font-size:12px;">${new Date(o.created_at).toLocaleString()}</span>
         </div>
-        <div style="margin-top:4px;">🎁 ${(o.goods || []).map(g => `${g.name}×${g.num}`).join("、")}</div>
-        <div class="order-logistics">🚚 物流：${o.logistics || "待发货"}</div>
-        <button class="delete-order-btn" onclick="deleteMyOrder('${o.orderNo}')">🗑️ 删除订单</button>
+        <div style="margin-top:4px;">🎁 ${(o.goods || []).map(g => `${g.name}×${g.num}`).join('、')}</div>
+        <div class="order-logistics">🚚 物流：${o.logistics || '待发货'}</div>
+        <button class="delete-order-btn" onclick="deleteOrder('${o.order_no}')">🗑️ 删除订单</button>
       </div>
-    `).join("");
+    `).join('');
   }
 
-  async function deleteMyOrder(orderNo) {
-    const currentPhone = document.getElementById("phone").value.trim();
-    if (!currentPhone) {
-      alert("请先填写手机号");
-      return;
-    }
-    if (!confirm(`确定要删除订单 ${orderNo} 吗？删除后不可恢复。`)) return;
-    try {
-      const { data: orderData, error: fetchError } = await supabase
-        .from('orders')
-        .select('phone')
-        .eq('orderNo', orderNo)
-        .single();
-      if (fetchError || !orderData) {
-        alert("订单不存在");
-        return;
-      }
-      if (orderData.phone !== currentPhone) {
-        alert("只能删除自己的订单");
-        return;
-      }
-      const { error } = await supabase.from('orders').delete().eq('orderNo', orderNo);
-      if (error) throw error;
-      alert(`订单 ${orderNo} 已删除`);
-      loadMyOrders();
-      const queryInput = document.getElementById("queryOrderNo").value;
-      if (queryInput === orderNo) {
-        document.getElementById("queryResult").innerHTML = "<span style='color:#ff4d4f;'>该订单已被删除</span>";
-      }
-    } catch (err) {
-      console.error("删除失败:", err);
-      alert("删除失败");
-    }
+  async function deleteOrder(orderNo) {
+    if (!confirm(`确定删除订单 ${orderNo} 吗？`)) return;
+    const { error } = await supabase.from('orders').delete().eq('order_no', orderNo).eq('user_id', currentUser.id);
+    if (error) return alert('删除失败: ' + error.message);
+    await loadMyOrders();
+    const queryInput = document.getElementById('queryOrderNo').value;
+    if (queryInput === orderNo) document.getElementById('queryResult').innerHTML = '<span style="color:#ff4d4f;">该订单已被删除</span>';
   }
 
   async function queryOrder() {
-    const orderNo = document.getElementById("queryOrderNo").value.trim();
-    const resultDiv = document.getElementById("queryResult");
-    if (!orderNo) {
-      resultDiv.innerHTML = "<span style='color:#e67e22;'>请输入订单号</span>";
-      return;
-    }
-    try {
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('orderNo', orderNo)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) {
-        resultDiv.innerHTML = "<span style='color:#d81e06;'>❌ 未找到订单，请核对订单号</span>";
-        return;
-      }
-      resultDiv.innerHTML = `
-        <div style="background:#f8f9fc; border-radius:16px; padding:12px;">
-          <div><strong>✅ 订单号：</strong>${escapeHtml(data.orderNo)}</div>
-          <div><strong>📅 下单时间：</strong>${escapeHtml(data.createTime)}</div>
-          <div><strong>🎁 商品：</strong>${(data.goods || []).map(g => `${g.name}×${g.num}`).join("、")}</div>
-          <div><strong>📦 物流信息：</strong>${data.logistics || "待发货"}</div>
-          <div><strong>👤 收件人：</strong>${escapeHtml(data.name)} ${escapeHtml(data.phone)}</div>
-          <div><strong>📍 地址：</strong>${escapeHtml(data.address)}</div>
-        </div>
-      `;
-    } catch (err) {
-      resultDiv.innerHTML = "<span style='color:red;'>查询失败</span>";
-    }
+    const orderNo = document.getElementById('queryOrderNo').value.trim();
+    const resultDiv = document.getElementById('queryResult');
+    if (!orderNo) return resultDiv.innerHTML = '<span style="color:#e67e22;">请输入订单号</span>';
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('order_no', orderNo)
+      .eq('user_id', currentUser.id)
+      .single();
+    if (error || !data) return resultDiv.innerHTML = '<span style="color:#d81e06;">❌ 未找到订单</span>';
+    resultDiv.innerHTML = `
+      <div style="background:#f8f9fc; border-radius:16px; padding:12px;">
+        <div><strong>✅ 订单号：</strong>${escapeHtml(data.order_no)}</div>
+        <div><strong>📅 下单时间：</strong>${new Date(data.created_at).toLocaleString()}</div>
+        <div><strong>🎁 商品：</strong>${data.goods.map(g => `${g.name}×${g.num}`).join('、')}</div>
+        <div><strong>📦 物流信息：</strong>${data.logistics || '待发货'}</div>
+        <div><strong>👤 收件人：</strong>${data.receiver_name} ${data.phone}</div>
+        <div><strong>📍 地址：</strong>${data.address}</div>
+      </div>
+    `;
   }
 
-  function subscribeOrders() {
-    supabase
+  // ========== 实时同步 ==========
+  function setupRealtimeSubscription() {
+    if (window.orderSubscription) window.orderSubscription.unsubscribe();
+    const subscription = supabase
       .channel('orders-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
-        if (currentUserPhone) loadMyOrders();
-        const queryNo = document.getElementById("queryOrderNo").value.trim();
-        if (queryNo) queryOrder();
-      })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders', filter: `user_id=eq.${currentUser.id}` },
+        (payload) => {
+          console.log('订单变更:', payload);
+          loadMyOrders();
+        }
+      )
       .subscribe();
+    window.orderSubscription = subscription;
   }
 
-  function subscribeGoods() {
-    supabase
-      .channel('goods-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'goods' }, () => {
-        loadGoodsFromDB();
-      })
-      .subscribe();
-  }
+  function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[m])); }
 
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/[&<>]/g, function(m) {
-      if (m === '&') return '&amp;';
-      if (m === '<') return '&lt;';
-      if (m === '>') return '&gt;';
-      return m;
-    });
-  }
-
-  function loadUserCache() {
-    const user = JSON.parse(localStorage.getItem("userInfo") || "{}");
-    if (user.name) document.getElementById("name").value = user.name;
-    if (user.phone) document.getElementById("phone").value = user.phone;
-    if (user.address) document.getElementById("address").value = user.address;
-    if (user.phone) {
-      currentUserPhone = user.phone;
-      loadMyOrders();
+  // 自动恢复登录状态
+  (async function init() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      currentUser = user;
+      await afterLogin();
+    } else {
+      document.getElementById('loginContainer').style.display = 'block';
+      document.getElementById('appMain').style.display = 'none';
     }
-  }
-
-  window.onload = async () => {
-    await loadGoodsFromDB();
-    renderCart();
-    loadUserCache();
-    subscribeOrders();
-    subscribeGoods();
-  };
+  })();
 </script>
 </body>
 </html>
