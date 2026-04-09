@@ -115,7 +115,7 @@
 </div>
 
 <script>
-  // ========== Supabase 配置（使用 anon key）==========
+  // ========== Supabase 配置（请替换为您的实际值）==========
   const SUPABASE_URL = 'https://mimlqogaaqhowxacdrew.supabase.co';   // 替换！
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1pbWxxb2dhYXFob3d4YWNkcmV3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1Nzg5NjIsImV4cCI6MjA5MDE1NDk2Mn0.sEbmXYUQFMXOnIlhCfbF_esBKmaupx5a2h1eDwLX8Ac';                // 替换！
   const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -123,27 +123,56 @@
   let cart = [];
   let currentUser = null;
 
-  // ========== 登录/注册 ==========
+  // ========== 注册（增加详细错误提示）==========
   async function doRegister() {
     const email = document.getElementById('regEmail').value.trim();
     const pwd = document.getElementById('regPassword').value.trim();
-    if (!email || !pwd || pwd.length < 6) return alert('邮箱和密码（至少6位）必填');
-    const { data, error } = await supabase.auth.signUp({ email, password: pwd });
-    if (error) return alert('注册失败: ' + error.message);
-    alert('注册成功！请登录');
-    switchTab('login');
-    document.getElementById('loginEmail').value = email;
+    if (!email || !pwd || pwd.length < 6) {
+      alert('请填写有效的邮箱和密码（至少6位）');
+      return;
+    }
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password: pwd });
+      if (error) {
+        alert('注册失败: ' + error.message);
+        return;
+      }
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        alert('该邮箱已注册，请直接登录');
+        return;
+      }
+      alert('注册成功！请登录（可能需要去邮箱确认）');
+      // 自动切换到登录标签，并填充邮箱
+      switchTab('login');
+      document.getElementById('loginEmail').value = email;
+      document.getElementById('loginPassword').value = '';
+    } catch (err) {
+      console.error(err);
+      alert('注册时发生错误，请查看控制台');
+    }
   }
 
+  // ========== 登录 ==========
   async function doLogin() {
     const email = document.getElementById('loginEmail').value.trim();
     const pwd = document.getElementById('loginPassword').value.trim();
-    if (!email || !pwd) return alert('请输入邮箱和密码');
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pwd });
-    if (error) return alert('登录失败: ' + error.message);
-    currentUser = data.user;
-    localStorage.setItem('supabase_user', JSON.stringify({ id: currentUser.id, email: currentUser.email }));
-    await afterLogin();
+    if (!email || !pwd) {
+      alert('请输入邮箱和密码');
+      return;
+    }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password: pwd });
+      if (error) {
+        alert('登录失败: ' + error.message);
+        return;
+      }
+      currentUser = data.user;
+      localStorage.setItem('supabase_user', JSON.stringify({ id: currentUser.id, email: currentUser.email }));
+      await afterLogin();
+    } catch (err) {
+      console.error(err);
+      alert('登录时发生错误，请查看控制台');
+    }
   }
 
   async function afterLogin() {
