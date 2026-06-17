@@ -2,27 +2,52 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>订单匹配系统（稳定增强版）</title>
+<title>订单匹配系统（稳定修复版）</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-body{font-family:Arial;background:#f5f6f8;padding:20px}
-.box{background:#fff;padding:15px;border-radius:10px;margin-bottom:15px}
-button{padding:8px 12px;margin-right:10px}
-table{border-collapse:collapse;width:100%;font-size:12px}
-td,th{border:1px solid #ddd;padding:6px}
-th{background:#f2f2f2}
+body{
+    font-family:Arial;
+    background:#f5f6f8;
+    padding:20px;
+}
+.box{
+    background:#fff;
+    padding:15px;
+    border-radius:10px;
+    margin-bottom:15px;
+}
+button{
+    padding:8px 12px;
+    margin-right:10px;
+    cursor:pointer;
+}
+table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:12px;
+}
+td,th{
+    border:1px solid #ddd;
+    padding:6px;
+}
+th{
+    background:#f2f2f2;
+}
 </style>
 </head>
 
 <body>
 
 <div class="box">
-    <h3>订单匹配系统（稳定版）</h3>
+    <h3>订单匹配系统（修复版）</h3>
+
     <input type="file" id="file">
+
     <button id="runBtn">开始处理</button>
     <button onclick="exportExcel()">导出</button>
+
     <div id="msg"></div>
 </div>
 
@@ -34,6 +59,9 @@ th{background:#f2f2f2}
 
 let resultData = [];
 
+/* ========= 绑定按钮 ========= */
+document.getElementById("runBtn").addEventListener("click", run);
+
 /* ========= 地址标准化 ========= */
 function normalizeAddress(s){
     return String(s||"")
@@ -42,13 +70,13 @@ function normalizeAddress(s){
         .toLowerCase();
 }
 
-/* ========= 数量提取 ========= */
+/* ========= 数量 ========= */
 function getQty(text){
     let m = text.match(/(?:随机)?(\d+)\s*(个|件|盒|包|套)?/);
     return m ? parseInt(m[1]) : 1;
 }
 
-/* ========= 商品拆分 ========= */
+/* ========= 拆分商品 ========= */
 function splitText(text){
     return String(text||"")
         .replace(/和/g,"、")
@@ -57,12 +85,11 @@ function splitText(text){
         .filter(Boolean);
 }
 
-/* ========= 商品核心词提取（关键） ========= */
+/* ========= 核心词 ========= */
 function coreName(name){
-
     return String(name)
-        .replace(/\d+\/\d+/g,'')   // 去 1/8 1/11
-        .replace(/\d+/g,'')       // 去数字
+        .replace(/\d+\/\d+/g,'')
+        .replace(/\d+/g,'')
         .replace(/盲盒/g,'')
         .replace(/随机/g,'')
         .replace(/款/g,'')
@@ -71,7 +98,7 @@ function coreName(name){
         .trim();
 }
 
-/* ========= 匹配函数（核心） ========= */
+/* ========= 匹配 ========= */
 function matchProduct(text, products){
 
     text = String(text)
@@ -103,7 +130,7 @@ function matchProduct(text, products){
     return best;
 }
 
-/* ========= 读取订单 ========= */
+/* ========= 订单解析 ========= */
 function parseOrders(sheet){
 
     let rows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
@@ -148,21 +175,18 @@ function parseProducts(sheet){
     let list=[];
 
     for(let i=1;i<rows.length;i++){
-
         if(rows[i][c] && rows[i][n]){
-
             list.push({
                 code:String(rows[i][c]),
                 name:String(rows[i][n])
             });
-
         }
     }
 
     return list;
 }
 
-/* ========= 合并同SKU ========= */
+/* ========= 合并 ========= */
 function merge(list){
 
     let map={};
@@ -186,7 +210,10 @@ function merge(list){
 function run(){
 
     let file=document.getElementById("file").files[0];
-    if(!file) return alert("请选择文件");
+    if(!file){
+        alert("请选择文件");
+        return;
+    }
 
     let reader=new FileReader();
 
@@ -206,7 +233,7 @@ function run(){
             let key=normalizeAddress(o.address);
 
             if(!orderMap[key]){
-                orderMap[key]="ORD-"+String(seq++).padStart(4,'0');
+                orderMap[key]="ORD-"+String(seq++).padStart(4,"0");
             }
 
             let orderNo=orderMap[key];
@@ -236,39 +263,50 @@ function run(){
         render();
 
         document.getElementById("msg").innerText=
-            "完成："+resultData.length+"条";
+            "完成：" + resultData.length + " 条";
     };
 
     reader.readAsArrayBuffer(file);
 }
 
-/* ========= 渲染 ========= */
+/* ========= 渲染（已彻底修复SyntaxError） ========= */
 function render(){
 
-    let html="<table><tr>
-    <th>订单号</th><th>地址</th><th>SKU</th><th>商品</th><th>数量</th>
-    </tr>";
+    let html = "";
 
-    resultData.forEach(r=>{
-        html+=`
-        <tr>
-        <td>${r.orderNo}</td>
-        <td>${r.address}</td>
-        <td>${r.code}</td>
-        <td>${r.name}</td>
-        <td>${r.qty}</td>
-        </tr>`;
+    html += "<table>";
+    html += "<tr>";
+    html += "<th>订单号</th>";
+    html += "<th>地址</th>";
+    html += "<th>SKU</th>";
+    html += "<th>商品</th>";
+    html += "<th>数量</th>";
+    html += "</tr>";
+
+    resultData.forEach(function(r){
+
+        html += "<tr>";
+        html += "<td>" + r.orderNo + "</td>";
+        html += "<td>" + r.address + "</td>";
+        html += "<td>" + r.code + "</td>";
+        html += "<td>" + r.name + "</td>";
+        html += "<td>" + r.qty + "</td>";
+        html += "</tr>";
+
     });
 
-    html+="</table>";
+    html += "</table>";
 
-    document.getElementById("result").innerHTML=html;
+    document.getElementById("result").innerHTML = html;
 }
 
 /* ========= 导出 ========= */
 function exportExcel(){
 
-    if(!resultData.length) return alert("无数据");
+    if(!resultData.length){
+        alert("无数据");
+        return;
+    }
 
     let arr=[["订单号","地址","SKU","商品","数量"]];
 
