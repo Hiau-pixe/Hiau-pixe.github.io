@@ -1,61 +1,29 @@
 <!DOCTYPE html>
-
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>订单匹配器</title>
+<title>订单匹配系统（稳定增强版）</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-body{
-    font-family:Arial;
-    background:#f5f6f8;
-    padding:20px;
-}
-.box{
-    background:#fff;
-    padding:20px;
-    border-radius:10px;
-    margin-bottom:20px;
-}
-button{
-    padding:8px 15px;
-    margin-right:10px;
-    cursor:pointer;
-}
-table{
-    width:100%;
-    border-collapse:collapse;
-}
-th,td{
-    border:1px solid #ddd;
-    padding:6px;
-    font-size:12px;
-}
-th{
-    background:#f2f2f2;
-}
+body{font-family:Arial;background:#f5f6f8;padding:20px}
+.box{background:#fff;padding:15px;border-radius:10px;margin-bottom:15px}
+button{padding:8px 12px;margin-right:10px}
+table{border-collapse:collapse;width:100%;font-size:12px}
+td,th{border:1px solid #ddd;padding:6px}
+th{background:#f2f2f2}
 </style>
-
 </head>
 
 <body>
 
 <div class="box">
-    <h2>订单匹配器</h2>
-
-```
-<input type="file" id="fileInput" accept=".xlsx,.xls">
-
-<button id="btnRun">开始处理</button>
-
-<button id="btnExport">导出结果</button>
-
-<div id="msg"></div>
-```
-
+    <h3>订单匹配系统（稳定版）</h3>
+    <input type="file" id="file">
+    <button onclick="run()">开始处理</button>
+    <button onclick="exportExcel()">导出</button>
+    <div id="msg"></div>
 </div>
 
 <div class="box">
@@ -64,182 +32,149 @@ th{
 
 <script>
 
-var resultData = [];
+let resultData = [];
 
-document.getElementById("btnRun").addEventListener("click", run);
-document.getElementById("btnExport").addEventListener("click", exportExcel);
-
-function normalizeAddress(str){
-
-    if(!str) return "";
-
-    return String(str)
-        .replace(/\s+/g,"")
-        .replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g,"")
+/* ========= 地址标准化 ========= */
+function normalizeAddress(s){
+    return String(s||"")
+        .replace(/\s+/g,'')
+        .replace(/[^\u4e00-\u9fa5a-zA-Z0-9]/g,'')
         .toLowerCase();
 }
 
-function extractQuantity(text){
+/* ========= 数量提取 ========= */
+function getQty(text){
+    let m = text.match(/(?:随机)?(\d+)\s*(个|件|盒|包|套)?/);
+    return m ? parseInt(m[1]) : 1;
+}
 
-    var m = text.match(/(?:随机)?(\d+)\s*(个|件|盒|包|套)/);
+/* ========= 商品拆分 ========= */
+function splitText(text){
+    return String(text||"")
+        .replace(/和/g,"、")
+        .split(/[、，,;；+&]/g)
+        .map(s=>s.trim())
+        .filter(Boolean);
+}
 
-    if(m){
-        return parseInt(m[1],10);
+/* ========= 商品核心词提取（关键） ========= */
+function coreName(name){
+
+    return String(name)
+        .replace(/\d+\/\d+/g,'')   // 去 1/8 1/11
+        .replace(/\d+/g,'')       // 去数字
+        .replace(/盲盒/g,'')
+        .replace(/随机/g,'')
+        .replace(/款/g,'')
+        .replace(/系列/g,'')
+        .replace(/\s+/g,'')
+        .trim();
+}
+
+/* ========= 匹配函数（核心） ========= */
+function matchProduct(text, products){
+
+    text = String(text)
+        .replace(/随机\d*个/g,'')
+        .replace(/\d+个/g,'')
+        .replace(/\d+件/g,'')
+        .replace(/×\d+/g,'')
+        .replace(/x\d+/ig,'')
+        .replace(/\s+/g,'');
+
+    let best = null;
+    let bestLen = 0;
+
+    for(let p of products){
+
+        let core = coreName(p.name);
+
+        if(!core) continue;
+
+        if(text.includes(core)){
+
+            if(core.length > bestLen){
+                best = p;
+                bestLen = core.length;
+            }
+        }
     }
 
-    return 1;
+    return best;
 }
 
-function splitProducts(text){
-
-    if(!text) return [];
-
-    text = String(text);
-
-    text = text.replace(/和/g,"|");
-
-    return text
-        .split(/[、，,；;+&|]/)
-        .map(function(x){
-            return x.trim();
-        })
-        .filter(function(x){
-            return x !== "";
-        });
-}
-
+/* ========= 读取订单 ========= */
 function parseOrders(sheet){
 
-    var rows = XLSX.utils.sheet_to_json(sheet,{
-        header:1,
-        defval:""
+    let rows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
+
+    let h = rows[0];
+
+    let a=0,p=1;
+
+    h.forEach((v,i)=>{
+        v=String(v);
+        if(v.includes("地址")) a=i;
+        if(v.includes("商品")||v.includes("产品")) p=i;
     });
 
-    var headers = rows[0];
+    let list=[];
 
-    var addressIndex = 0;
-    var productIndex = 1;
-
-    headers.forEach(function(h,i){
-
-        h = String(h);
-
-        if(h.indexOf("地址") !== -1){
-            addressIndex = i;
-        }
-
-        if(
-            h.indexOf("商品") !== -1 ||
-            h.indexOf("产品") !== -1
-        ){
-            productIndex = i;
-        }
-
-    });
-
-    var orders = [];
-
-    for(var i=1;i<rows.length;i++){
-
-        orders.push({
-            address: rows[i][addressIndex],
-            product: rows[i][productIndex]
+    for(let i=1;i<rows.length;i++){
+        list.push({
+            address:rows[i][a],
+            product:rows[i][p]
         });
     }
 
-    return orders;
+    return list;
 }
 
+/* ========= 商品库 ========= */
 function parseProducts(sheet){
 
-    var rows = XLSX.utils.sheet_to_json(sheet,{
-        header:1,
-        defval:""
+    let rows = XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
+
+    let h = rows[0];
+
+    let c=0,n=1;
+
+    h.forEach((v,i)=>{
+        v=String(v);
+        if(v.includes("编码")) c=i;
+        if(v.includes("名称")) n=i;
     });
 
-    var headers = rows[0];
+    let list=[];
 
-    var codeIndex = 0;
-    var nameIndex = 1;
+    for(let i=1;i<rows.length;i++){
 
-    headers.forEach(function(h,i){
+        if(rows[i][c] && rows[i][n]){
 
-        h = String(h);
-
-        if(h.indexOf("编码") !== -1){
-            codeIndex = i;
-        }
-
-        if(h.indexOf("名称") !== -1){
-            nameIndex = i;
-        }
-
-    });
-
-    var products = [];
-
-    for(var i=1;i<rows.length;i++){
-
-        if(rows[i][codeIndex] && rows[i][nameIndex]){
-
-            products.push({
-                code:String(rows[i][codeIndex]),
-                name:String(rows[i][nameIndex])
+            list.push({
+                code:String(rows[i][c]),
+                name:String(rows[i][n])
             });
 
         }
     }
 
-    return products;
+    return list;
 }
 
-function matchProduct(text, products){
+/* ========= 合并同SKU ========= */
+function merge(list){
 
-    text = String(text).toLowerCase();
+    let map={};
 
-    var best = null;
-    var bestLen = 0;
+    list.forEach(r=>{
 
-    products.forEach(function(p){
+        let k=r.orderNo+"_"+r.code;
 
-        var name = p.name.toLowerCase();
-
-        if(text.indexOf(name) !== -1){
-
-            if(name.length > bestLen){
-
-                best = p;
-                bestLen = name.length;
-            }
-        }
-
-    });
-
-    return best;
-}
-
-function mergeRows(rows){
-
-    var map = {};
-
-    rows.forEach(function(r){
-
-        var key = r.orderNo + "_" + r.sku;
-
-        if(!map[key]){
-
-            map[key] = {
-                orderNo:r.orderNo,
-                address:r.address,
-                sku:r.sku,
-                name:r.name,
-                qty:r.qty
-            };
-
+        if(!map[k]){
+            map[k]=r;
         }else{
-
-            map[key].qty += r.qty;
-
+            map[k].qty += r.qty;
         }
 
     });
@@ -247,207 +182,104 @@ function mergeRows(rows){
     return Object.values(map);
 }
 
+/* ========= 主流程 ========= */
 function run(){
 
-    var file =
-        document.getElementById("fileInput").files[0];
+    let file=document.getElementById("file").files[0];
+    if(!file) return alert("请选择文件");
 
-    if(!file){
+    let reader=new FileReader();
 
-        alert("请选择Excel文件");
+    reader.onload=function(e){
 
-        return;
-    }
+        let wb=XLSX.read(new Uint8Array(e.target.result),{type:"array"});
 
-    var reader = new FileReader();
+        let orders=parseOrders(wb.Sheets[wb.SheetNames[0]]);
+        let products=parseProducts(wb.Sheets[wb.SheetNames[1]]);
 
-    reader.onload = function(e){
+        let orderMap={};
+        let seq=1;
+        let out=[];
 
-        try{
+        for(let o of orders){
 
-            var wb = XLSX.read(
-                new Uint8Array(e.target.result),
-                {type:"array"}
-            );
+            let key=normalizeAddress(o.address);
 
-            if(wb.SheetNames.length < 2){
-
-                alert("需要两个工作表");
-
-                return;
+            if(!orderMap[key]){
+                orderMap[key]="ORD-"+String(seq++).padStart(4,'0');
             }
 
-            var orders =
-                parseOrders(
-                    wb.Sheets[wb.SheetNames[0]]
-                );
+            let orderNo=orderMap[key];
 
-            var products =
-                parseProducts(
-                    wb.Sheets[wb.SheetNames[1]]
-                );
+            splitText(o.product).forEach(item=>{
 
-            var orderMap = {};
+                let qty=getQty(item);
 
-            var seq = 1;
+                let clean=item.replace(/\d+/g,'');
 
-            var rows = [];
+                let p=matchProduct(clean,products);
 
-            orders.forEach(function(order){
-
-                var key =
-                    normalizeAddress(order.address);
-
-                if(!orderMap[key]){
-
-                    orderMap[key] =
-                        "ORD-" +
-                        String(seq).padStart(4,"0");
-
-                    seq++;
-                }
-
-                var orderNo = orderMap[key];
-
-                var list =
-                    splitProducts(order.product);
-
-                list.forEach(function(item){
-
-                    var qty =
-                        extractQuantity(item);
-
-                    var clean =
-                        item.replace(/\d+/g,"");
-
-                    var p =
-                        matchProduct(
-                            clean,
-                            products
-                        );
-
-                    rows.push({
-
-                        orderNo:orderNo,
-
-                        address:order.address,
-
-                        sku:p ? p.code : "未匹配",
-
-                        name:p ? p.name : "未识别",
-
-                        qty:qty
-
-                    });
-
+                out.push({
+                    orderNo,
+                    address:o.address,
+                    code:p?p.code:"未匹配",
+                    name:p?p.name:"未识别",
+                    qty
                 });
 
             });
 
-            resultData = mergeRows(rows);
-
-            renderTable();
-
-            document.getElementById("msg").innerHTML =
-                "处理完成，共 " +
-                resultData.length +
-                " 条记录";
-
-        }
-        catch(err){
-
-            console.error(err);
-
-            alert(err.message);
-
         }
 
+        resultData=merge(out);
+
+        render();
+
+        document.getElementById("msg").innerText=
+            "完成："+resultData.length+"条";
     };
 
     reader.readAsArrayBuffer(file);
 }
 
-function renderTable(){
+/* ========= 渲染 ========= */
+function render(){
 
-    var html = "";
+    let html="<table><tr>
+    <th>订单号</th><th>地址</th><th>SKU</th><th>商品</th><th>数量</th>
+    </tr>";
 
-    html += "<table>";
-
-    html += "<tr>";
-    html += "<th>订单号</th>";
-    html += "<th>地址</th>";
-    html += "<th>SKU</th>";
-    html += "<th>商品名称</th>";
-    html += "<th>数量</th>";
-    html += "</tr>";
-
-    resultData.forEach(function(r){
-
-        html += "<tr>";
-
-        html += "<td>"+r.orderNo+"</td>";
-        html += "<td>"+r.address+"</td>";
-        html += "<td>"+r.sku+"</td>";
-        html += "<td>"+r.name+"</td>";
-        html += "<td>"+r.qty+"</td>";
-
-        html += "</tr>";
-
+    resultData.forEach(r=>{
+        html+=`
+        <tr>
+        <td>${r.orderNo}</td>
+        <td>${r.address}</td>
+        <td>${r.code}</td>
+        <td>${r.name}</td>
+        <td>${r.qty}</td>
+        </tr>`;
     });
 
-    html += "</table>";
+    html+="</table>";
 
-    document.getElementById("result").innerHTML =
-        html;
+    document.getElementById("result").innerHTML=html;
 }
 
+/* ========= 导出 ========= */
 function exportExcel(){
 
-    if(resultData.length===0){
+    if(!resultData.length) return alert("无数据");
 
-        alert("没有数据");
+    let arr=[["订单号","地址","SKU","商品","数量"]];
 
-        return;
-    }
-
-    var arr = [];
-
-    arr.push([
-        "订单号",
-        "地址",
-        "SKU",
-        "商品名称",
-        "数量"
-    ]);
-
-    resultData.forEach(function(r){
-
-        arr.push([
-            r.orderNo,
-            r.address,
-            r.sku,
-            r.name,
-            r.qty
-        ]);
-
+    resultData.forEach(r=>{
+        arr.push([r.orderNo,r.address,r.code,r.name,r.qty]);
     });
 
-    var ws =
-        XLSX.utils.aoa_to_sheet(arr);
-
-    var wb =
-        XLSX.utils.book_new();
-
-    XLSX.utils.book_append_sheet(
-        wb,
-        ws,
-        "结果"
-    );
-
-    XLSX.writeFile(
-        wb,
-        "订单匹配结果.xlsx"
-    );
+    let ws=XLSX.utils.aoa_to_sheet(arr);
+    let wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,"订单");
+    XLSX.writeFile(wb,"订单匹配结果.xlsx");
 }
 
 </script>
